@@ -1,0 +1,76 @@
+{
+  "levels": [
+    {
+      "name": "level1.json",
+      "path": "./assets/levels/level1.json",
+      "title": "Уровень 1 - Основы",
+      "description": "Изучите основы управления и механику прыжков"
+    },
+    {
+      "name": "level2.json", 
+      "path": "./assets/levels/level2.json",
+      "title": "Уровень 2 - Враги",
+      "description": "Научитесь избегать врагов и использовать топание"
+    },
+    {
+      "name": "level3.json",
+      "path": "./assets/levels/level3.json", 
+      "title": "Уровень 3 - Платформы",
+      "description": "Используйте движущиеся платформы"
+    },
+    {
+      "name": "level4.json",
+      "path": "./assets/levels/level4.json",
+      "title": "Уровень 4 - Сложности",
+      "description": "Более сложные препятствия"
+    },
+    {
+      "name": "level5.json",
+      "path": "./assets/levels/level5.json",
+      "title": "Уровень 5 - Мастерство", 
+      "description": "Продемонстрируйте своё мастерство"
+    },
+    {
+      "name": "level6.json",
+      "path": "./assets/levels/level6.json",
+      "title": "Уровень 6 - Дополнительный",
+      "description": "Дополнительный уровень"
+    },
+    {
+      "name": "level7.json",
+      "path": "./assets/levels/level7.json",
+      "title": "Уровень 7 - Дополнительный",
+      "description": "Дополнительный уровень"
+    },
+    {
+      "name": "level8.json",
+      "path": "./assets/levels/level8.json",
+      "title": "Уровень 8 - Дополнительный", 
+      "description": "Дополнительный уровень"
+    },
+    {
+      "name": "level9.json",
+      "path": "./assets/levels/level9.json",
+      "title": "Уровень 9 - Дополнительный",
+      "description": "Дополнительный уровень"
+    },
+    {
+      "name": "level10.json",
+      "path": "./assets/levels/level10.json",
+      "title": "Уровень 10 - Дополнительный",
+      "description": "Дополнительный уровень"
+    },
+    {
+      "name": "level11.json",
+      "path": "./assets/levels/level11.json",
+      "title": "Уровень 11 - Дополнительный",
+      "description": "Дополнительный уровень"
+    },
+    {
+      "name": "level12.json",
+      "path": "./assets/levels/level12.json",
+      "title": "Уровень 12 - Дополнительный",
+      "description": "Дополнительный уровень"
+    }
+  ]
+}

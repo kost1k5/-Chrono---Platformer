@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; object-src 'none';">
+    <title>Улучшенный редактор уровней - Хроно-Платформер</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 12px 20px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            position: relative;
+        }
+        
+        .header h1 {
+            display: inline-block;
+            margin-right: 30px;
+            font-size: 24px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .header-controls {
+            display: inline-flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .header-controls button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+        }
+        
+        .header-controls button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .header-controls button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .danger {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52) !important;
+        }
+        
+        .main-container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+        
+        .toolbar {
+            width: 280px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .tool-section {
+            margin-bottom: 25px;
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .tool-section h3 {
+            margin-bottom: 12px;
+            color: #2c3e50;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        
+        .tool-button {
+            padding: 12px 8px;
+            border: 2px solid #e0e6ed;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            color: #495057;
+        }
+        
+        .tool-button:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+            transform: translateY(-1px);
+        }
+        
+        .tool-button.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-color: #667eea;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #34495e;
+        }
+        
+        .level-canvas {
+            display: block;
+            background: #ecf0f1;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            margin: 10px;
+            box-shadow: 0 4px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .properties-panel {
+            width: 250px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 1px solid rgba(0, 0, 0, 0.1);
+        }
+        
+        .properties-section {
+            background: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+        }
+        
+        .form-group {
+            margin-bottom: 12px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #e0e6ed;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .coordinates {
+            position: fixed;
+            bottom: 10px;
+            left: 300px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+        
+        .file-drop-zone {
+            border: 2px dashed #667eea;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            color: #667eea;
+            font-weight: 500;
+        }
+        
+        .file-drop-zone:hover {
+            border-color: #764ba2;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+            transform: translateY(-2px);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 16px;
+            width: 80%;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+        
+        .close:hover {
+            color: #667eea;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            font-size: 12px;
+        }
+        
+        .stats-grid > div {
+            background: #f8f9fa;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        
+        .keyboard-shortcuts {
+            font-size: 11px;
+            color: #6c757d;
+            line-height: 1.4;
+        }
+        
+        .keyboard-shortcuts h4 {
+            color: #495057;
+            margin-bottom: 8px;
+        }
+        
+        .shortcut-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+        
+        .key {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        
+        /* Стили для улучшенной визуализации */
+        .entity-layer {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        .platform-marker {
+            border: 2px solid #666;
+            background: rgba(128, 128, 128, 0.8);
+        }
+        
+        .entity-marker {
+            border: 2px solid;
+            border-radius: 4px;
+        }
+        
+        /* Анимации */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .tool-section {
+            animation: fadeIn 0.3s ease;
+        }
+        
+        /* Адаптивность */
+        @media (max-width: 1200px) {
+            .toolbar {
+                width: 220px;
+            }
+            
+            .properties-panel {
+                width: 200px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+            }
+            
+            .toolbar, .properties-panel {
+                width: 100%;
+                height: auto;
+                max-height: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎮 Редактор Уровней v2.0</h1>
+        <div class="header-controls">
+            <button onclick="newLevel()">📄 Новый</button>
+            <button onclick="loadLevel()">📁 Загрузить</button>
+            <button onclick="saveLevel()">💾 Сохранить</button>
+            <button onclick="testLevel()" style="background: linear-gradient(135deg, #28a745, #20c997);">🎯 Тест</button>
+            <button id="undoBtn" onclick="editor.undo()">↶ Отменить</button>
+            <button id="redoBtn" onclick="editor.redo()">↷ Повторить</button>
+            <button onclick="clearLevel()" class="danger">🗑 Очистить</button>
+        </div>
+    </div>
+    
+    <div class="main-container">
+        <div class="toolbar">
+            <div class="tool-section">
+                <h3>🔧 Инструменты</h3>
+                <div class="tool-grid">
+                    <button class="tool-button active" data-tool="wall">🧱 Стена<br><small>(W)</small></button>
+                    <button class="tool-button" data-tool="empty">🌫 Пусто<br><small>(E)</small></button>
+                    <button class="tool-button" data-tool="player">🏃 Игрок<br><small>(P)</small></button>
+                    <button class="tool-button" data-tool="enemy">👾 Враг<br><small>(R)</small></button>
+                    <button class="tool-button" data-tool="goal">🏁 Цель<br><small>(G)</small></button>
+                    <button class="tool-button" data-tool="platform">📦 Платформа<br><small>(T)</small></button>
+                    <button class="tool-button" data-tool="select">👆 Выбор<br><small>(S)</small></button>
+                </div>
+            </div>
+            
+            <div class="tool-section">
+                <h3>📐 Размеры уровня</h3>
+                <div class="form-group">
+                    <label>Ширина:</label>
+                    <input type="number" id="levelWidth" value="30" min="10" max="100">
+                </div>
+                <div class="form-group">
+                    <label>Высота:</label>
+                    <input type="number" id="levelHeight" value="17" min="10" max="50">
+                </div>
+                <div class="form-group">
+                    <label>Размер тайла:</label>
+                    <input type="number" id="tileSize" value="32" min="16" max="64" step="16">
+                </div>
+                <button onclick="resizeLevel()">Применить размер</button>
+            </div>
+            
+            <div class="tool-section">
+                <h3>⚙ Настройки</h3>
+                <div class="checkbox-group">
+                    <input type="checkbox" id="gridToggle" checked>
+                    <label for="gridToggle">Показать сетку</label>
+                </div>
+                <button onclick="addBorders()">➕ Добавить границы</button>
+                <button onclick="fillBottom()">📐 Заполнить низ</button>
+            </div>
+            
+            <div class="tool-section">
+                <h3>📊 Статистика</h3>
+                <div id="levelStats" class="stats-grid">
+                    <div>Размер: 30×17</div>
+                    <div>Стены: 0</div>
+                    <div>Сущности: 0</div>
+                    <div>Платформы: 0</div>
+                    <div>Масштаб: 100%</div>
+                </div>
+            </div>
+            
+            <div class="tool-section">
+                <h3>📂 Быстрая загрузка</h3>
+                <div class="form-group">
+                    <select id="levelSelect">
+                        <option value="">Выберите уровень...</option>
+                        <option value="level1.json">Уровень 1</option>
+                        <option value="level2.json">Уровень 2</option>
+                        <option value="level3.json">Уровень 3</option>
+                        <option value="level4.json">Уровень 4</option>
+                        <option value="level5.json">Уровень 5</option>
+                        <option value="level6.json">Уровень 6</option>
+                        <option value="level7.json">Уровень 7</option>
+                        <option value="level8.json">Уровень 8</option>
+                        <option value="level9.json">Уровень 9</option>
+                        <option value="level10.json">Уровень 10</option>
+                    </select>
+                </div>
+                <button onclick="loadSelectedLevel()">Загрузить выбранный</button>
+            </div>
+            
+            <div class="tool-section keyboard-shortcuts">
+                <h4>⌨️ Горячие клавиши</h4>
+                <div class="shortcut-item">
+                    <span>Отменить</span>
+                    <span><span class="key">Ctrl+Z</span></span>
+                </div>
+                <div class="shortcut-item">
+                    <span>Повторить</span>
+                    <span><span class="key">Ctrl+Y</span></span>
+                </div>
+                <div class="shortcut-item">
+                    <span>Сохранить</span>
+                    <span><span class="key">Ctrl+S</span></span>
+                </div>
+                <div class="shortcut-item">
+                    <span>Панорама</span>
+                    <span><span class="key">ПКМ</span></span>
+                </div>
+                <div class="shortcut-item">
+                    <span>Масштаб</span>
+                    <span><span class="key">Колесо</span></span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="canvas-container">
+            <canvas id="levelCanvas" class="level-canvas"></canvas>
+            <div id="entityLayer" class="entity-layer"></div>
+        </div>
+        
+        <div class="properties-panel">
+            <div class="properties-section">
+                <h3>📋 Свойства объекта</h3>
+                <div id="entityProperties" style="display: none;">
+                    <p>Выберите объект для редактирования</p>
+                </div>
+                <div id="noSelection">
+                    <p style="color: #6c757d; text-align: center; font-style: italic;">
+                        Выберите объект инструментом "Выбор" для редактирования его свойств
+                    </p>
+                </div>
+            </div>
+            
+            <div class="properties-section">
+                <h3>📁 Файлы</h3>
+                <div class="file-drop-zone" id="fileDropZone">
+                    <p>📂 Перетащите файл уровня сюда</p>
+                    <p style="font-size: 12px; margin-top: 8px; opacity: 0.7;">или нажмите для выбора</p>
+                </div>
+                <input type="file" id="fileInput" accept=".json" style="display: none;">
+            </div>
+            
+            <div class="properties-section">
+                <h3>💡 Советы</h3>
+                <ul style="font-size: 12px; color: #6c757d; line-height: 1.4; padding-left: 16px;">
+                    <li>Используйте ПКМ для панорамирования</li>
+                    <li>Колесо мыши для масштабирования</li>
+                    <li>Ctrl+Z/Y для отмены/повтора</li>
+                    <li>Клавиши W,E,P,G,R,T для инструментов</li>
+                    <li>Delete для удаления выбранного</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Координаты мыши -->
+    <div class="coordinates" id="coordinates">
+        Мышь: (0, 0) | Тайл: (0, 0)
+    </div>
+    
+    <!-- Модальные окна -->
+    <div id="loadModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('loadModal')">&times;</span>
+            <h2>Загрузить уровень</h2>
+            <p>Выберите уровень для загрузки:</p>
+            <select id="modalLevelSelect">
+                <option value="level1.json">Уровень 1</option>
+                <option value="level2.json">Уровень 2</option>
+                <option value="level3.json">Уровень 3</option>
+                <option value="level4.json">Уровень 4</option>
+                <option value="level5.json">Уровень 5</option>
+            </select>
+            <button onclick="loadSelectedLevel(); closeModal('loadModal')">Загрузить</button>
+        </div>
+    </div>
+    
+    <div id="saveModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('saveModal')">&times;</span>
+            <h2>Сохранить уровень</h2>
+            <div class="form-group">
+                <label>Имя файла:</label>
+                <input type="text" id="saveFileName" value="custom_level.json">
+            </div>
+            <button onclick="saveCurrentLevel(); closeModal('saveModal')">Сохранить</button>
+        </div>
+    </div>
+    
+    <script src="level_editor.js"></script>
+</body>
+</html>

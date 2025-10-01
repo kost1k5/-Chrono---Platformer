@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; object-src 'none';">
+    <title>Визуализатор уровней - Хроно-Платформер</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .level-selector {
+            margin-bottom: 20px;
+        }
+        .level-selector select {
+            padding: 5px 10px;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        .level-info {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .map-container {
+            border: 2px solid #333;
+            display: inline-block;
+            background: #87CEEB;
+        }
+        .tile {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            vertical-align: top;
+        }
+        .tile-empty { background-color: #87CEEB; }
+        .tile-wall { background-color: #8B4513; border: 1px solid #654321; box-sizing: border-box; }
+        .entity {
+            position: absolute;
+            border: 2px solid;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-shadow: 1px 1px 1px rgba(0,0,0,0.7);
+        }
+        .entity-player { background-color: #0080FF; border-color: #0060CC; }
+        .entity-enemy { background-color: #FF4040; border-color: #CC0000; }
+        .entity-goal { background-color: #40FF40; border-color: #00CC00; }
+        .platform { 
+            position: absolute; 
+            background-color: #FFD700; 
+            border: 2px solid #FFA500; 
+            opacity: 0.8;
+        }
+        .info-panel {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .info-section {
+            margin-bottom: 15px;
+        }
+        .info-section h3 {
+            margin: 0 0 8px 0;
+            color: #333;
+        }
+        .entity-list {
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        .legend {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border: 1px solid #333;
+        }
+        .coordinates {
+            font-size: 11px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Визуализатор уровней - Хроно-Платформер</h1>
+        
+        <div class="level-selector">
+            <label for="levelSelect">Выберите уровень:</label>
+            <select id="levelSelect">
+                <option value="">-- Выберите уровень --</option>
+                <option value="level1.json">Уровень 1</option>
+                <option value="level2.json">Уровень 2</option>
+                <option value="level3.json">Уровень 3</option>
+                <option value="level4.json">Уровень 4</option>
+                <option value="level5.json">Уровень 5</option>
+                <option value="level6.json">Уровень 6</option>
+                <option value="level7.json">Уровень 7</option>
+            </select>
+            <button onclick="loadLevel()">Загрузить</button>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color tile-wall"></div>
+                <span>Стена/Блок</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color tile-empty"></div>
+                <span>Воздух</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color entity-player"></div>
+                <span>Игрок</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color entity-enemy"></div>
+                <span>Враг</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color entity-goal"></div>
+                <span>Цель</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #FFD700; border-color: #FFA500;"></div>
+                <span>Движущаяся платформа</span>
+            </div>
+        </div>
+
+        <div id="levelDisplay" class="level-info" style="display: none;">
+            <div>
+                <div id="mapContainer" class="map-container"></div>
+                <div class="coordinates">
+                    <strong>Система координат:</strong><br>
+                    • Каждая клетка = 32×32 пикселя<br>
+                    • Координаты в пикселях: X = столбец × 32, Y = строка × 32<br>
+                    • Игрок: 32×50 пикселей, Враги: 32×32 пикселя
+                </div>
+            </div>
+            <div class="info-panel">
+                <div class="info-section">
+                    <h3>Информация об уровне</h3>
+                    <div id="levelInfo"></div>
+                </div>
+                <div class="info-section">
+                    <h3>Сущности</h3>
+                    <div id="entityInfo" class="entity-list"></div>
+                </div>
+                <div class="info-section" id="platformSection" style="display: none;">
+                    <h3>Движущиеся платформы</h3>
+                    <div id="platformInfo" class="entity-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentLevel = null;
+        const SCALE = 0.5; // Уменьшаем размер для лучшего отображения
+
+        function loadLevel() {
+            const select = document.getElementById('levelSelect');
+            const levelFile = select.value;
+            
+            if (!levelFile) {
+                alert('Выберите уровень!');
+                return;
+            }
+
+            fetch(`./assets/levels/${levelFile}`)
+                .then(response => response.json())
+                .then(levelData => {
+                    currentLevel = levelData;
+                    displayLevel(levelData);
+                })
+                .catch(error => {
+                    alert('Ошибка загрузки уровня: ' + error.message);
+                });
+        }
+
+        function displayLevel(level) {
+            const container = document.getElementById('mapContainer');
+            const levelDisplay = document.getElementById('levelDisplay');
+            
+            // Показываем контейнер
+            levelDisplay.style.display = 'grid';
+            
+            // Очищаем контейнер
+            container.innerHTML = '';
+            container.style.position = 'relative';
+            container.style.width = (level.width * 16) + 'px';
+            container.style.height = (level.height * 16) + 'px';
+            
+            // Отображаем тайлы
+            for (let y = 0; y < level.height; y++) {
+                for (let x = 0; x < level.width; x++) {
+                    const tileIndex = y * level.width + x;
+                    const tileValue = level.tileData[tileIndex];
+                    
+                    const tile = document.createElement('div');
+                    tile.className = 'tile ' + (tileValue === 1 ? 'tile-wall' : 'tile-empty');
+                    tile.style.position = 'absolute';
+                    tile.style.left = (x * 16) + 'px';
+                    tile.style.top = (y * 16) + 'px';
+                    tile.title = `Тайл (${x}, ${y}) = ${tileValue}`;
+                    
+                    container.appendChild(tile);
+                }
+            }
+            
+            // Отображаем движущиеся платформы
+            if (level.movingPlatforms) {
+                level.movingPlatforms.forEach((platform, index) => {
+                    const platElement = document.createElement('div');
+                    platElement.className = 'platform';
+                    platElement.style.left = (platform.x * SCALE) + 'px';
+                    platElement.style.top = (platform.y * SCALE) + 'px';
+                    platElement.style.width = (platform.width * SCALE) + 'px';
+                    platElement.style.height = (platform.height * SCALE) + 'px';
+                    platElement.title = `Платформа ${index + 1}: (${platform.x}, ${platform.y}) → (${platform.endX}, ${platform.endY})`;
+                    
+                    container.appendChild(platElement);
+                });
+            }
+            
+            // Отображаем сущности
+            level.entities.forEach((entity, index) => {
+                const entityElement = document.createElement('div');
+                entityElement.className = 'entity entity-' + entity.type;
+                
+                // Размеры сущностей
+                let width = 16, height = 16;
+                if (entity.type === 'player') {
+                    width = 16;
+                    height = 25; // 50 пикселей в масштабе
+                }
+                
+                entityElement.style.left = (entity.x * SCALE) + 'px';
+                entityElement.style.top = (entity.y * SCALE) + 'px';
+                entityElement.style.width = width + 'px';
+                entityElement.style.height = height + 'px';
+                
+                // Текст на сущности
+                let text = '';
+                switch (entity.type) {
+                    case 'player': text = 'P'; break;
+                    case 'enemy': text = 'E'; break;
+                    case 'goal': text = 'G'; break;
+                }
+                entityElement.textContent = text;
+                entityElement.title = `${entity.type} в (${entity.x}, ${entity.y})`;
+                
+                container.appendChild(entityElement);
+            });
+            
+            // Заполняем информационную панель
+            updateInfoPanel(level);
+        }
+
+        function updateInfoPanel(level) {
+            // Общая информация
+            const levelInfo = document.getElementById('levelInfo');
+            levelInfo.innerHTML = `
+                <strong>Размер:</strong> ${level.width} × ${level.height} тайлов (${level.width * level.tileSize} × ${level.height * level.tileSize} пикселей)<br>
+                <strong>Размер тайла:</strong> ${level.tileSize} пикселей<br>
+                <strong>Всего тайлов:</strong> ${level.tileData.length}<br>
+                <strong>Стены:</strong> ${level.tileData.filter(t => t === 1).length}<br>
+                <strong>Пустых клеток:</strong> ${level.tileData.filter(t => t === 0).length}
+            `;
+            
+            // Информация о сущностях
+            const entityInfo = document.getElementById('entityInfo');
+            let entityHtml = '';
+            level.entities.forEach((entity, index) => {
+                const tileX = Math.floor(entity.x / level.tileSize);
+                const tileY = Math.floor(entity.y / level.tileSize);
+                
+                entityHtml += `<div><strong>${entity.type.toUpperCase()}:</strong> `;
+                entityHtml += `Пиксели (${entity.x}, ${entity.y}) = Тайлы (${tileX}, ${tileY})`;
+                
+                if (entity.type === 'enemy') {
+                    entityHtml += `<br>&nbsp;&nbsp;Дальность: ${entity.moveRange || 80}px, Скорость: ${entity.speed || 50}px/s`;
+                }
+                entityHtml += `</div><br>`;
+            });
+            entityInfo.innerHTML = entityHtml;
+            
+            // Информация о платформах
+            const platformSection = document.getElementById('platformSection');
+            const platformInfo = document.getElementById('platformInfo');
+            
+            if (level.movingPlatforms && level.movingPlatforms.length > 0) {
+                platformSection.style.display = 'block';
+                let platformHtml = '';
+                level.movingPlatforms.forEach((platform, index) => {
+                    const startTileX = Math.floor(platform.x / level.tileSize);
+                    const startTileY = Math.floor(platform.y / level.tileSize);
+                    const endTileX = Math.floor(platform.endX / level.tileSize);
+                    const endTileY = Math.floor(platform.endY / level.tileSize);
+                    
+                    platformHtml += `<div><strong>ПЛАТФОРМА ${index + 1}:</strong><br>`;
+                    platformHtml += `&nbsp;&nbsp;Начало: (${platform.x}, ${platform.y}) = Тайлы (${startTileX}, ${startTileY})<br>`;
+                    platformHtml += `&nbsp;&nbsp;Конец: (${platform.endX}, ${platform.endY}) = Тайлы (${endTileX}, ${endTileY})<br>`;
+                    platformHtml += `&nbsp;&nbsp;Размер: ${platform.width}×${platform.height}px, Скорость: ${platform.speed}px/s<br>`;
+                    
+                    // Определяем тип движения
+                    let movementType = '';
+                    if (platform.x === platform.endX) movementType = 'Вертикальное';
+                    else if (platform.y === platform.endY) movementType = 'Горизонтальное';
+                    else movementType = 'Диагональное';
+                    
+                    platformHtml += `&nbsp;&nbsp;Тип движения: ${movementType}</div><br>`;
+                });
+                platformInfo.innerHTML = platformHtml;
+            } else {
+                platformSection.style.display = 'none';
+            }
+        }
+
+        // Автозагрузка level5 при открытии страницы
+        window.onload = function() {
+            document.getElementById('levelSelect').value = 'level5.json';
+            loadLevel();
+        };
+    </script>
+</body>
+</html>

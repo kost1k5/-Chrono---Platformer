@@ -1,0 +1,48 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #1a1a1a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+canvas {
+    background-color: #000;
+    display: block;
+    position: relative;
+    z-index: 1000;
+
+    /* Адаптивность */
+    width: 100%;
+    height: 100%;
+    max-width: 960px; /* Максимальная ширина игры */
+    object-fit: contain; /* Сохраняет пропорции */
+}
+
+#rotate-device-message {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #1a1a1a;
+    color: white;
+    font-family: '"Source Sans Pro", sans-serif';
+    font-size: 24px;
+    text-align: center;
+    padding-top: 45vh; /* Simple vertical centering */
+    z-index: 2000; /* Must be on top of the canvas */
+}
+
+@media (orientation: portrait) {
+    #gameCanvas {
+        display: none;
+    }
+
+    #rotate-device-message {
+        display: block;
+    }
+}
