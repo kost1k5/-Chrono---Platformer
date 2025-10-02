@@ -45,3 +45,300 @@ export class SaveManager {
     }
 }
 
+/**
+ * Менеджер сохранений через JSONBin API
+ */
+export class JSONBinSaveManager {
+    constructor() {
+        // ID бинов из предоставленных данных
+        this.USERS_BIN_ID = '68dd9ef8d0ea881f40921b6e';
+        this.LEADERBOARD_BIN_ID = '68dd9e47d0ea881f40921afa';
+        this.MASTER_KEY = '$2a$10$l.lufdrfu9Ha0V9zyOC7su8cpk3eSvHZ5wtIVeSbozl6xWh7aq8nC';
+        
+        this.BASE_URL = 'https://api.jsonbin.io/v3/b';
+        
+        // Генерируем уникальный ID пользователя если его еще нет
+        this.userId = this.getUserId();
+    }
+
+    /**
+     * Получает или создает уникальный ID пользователя
+     */
+    getUserId() {
+        let userId = localStorage.getItem('chronoPlatformerUserId');
+        if (!userId) {
+            // Генерируем уникальный ID
+            userId = 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+            localStorage.setItem('chronoPlatformerUserId', userId);
+        }
+        return userId;
+    }
+
+    /**
+     * Выполняет запрос к JSONBin API
+     */
+    async apiRequest(endpoint, method = 'GET', data = null) {
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Master-Key': this.MASTER_KEY
+        };
+
+        const options = {
+            method,
+            headers
+        };
+
+        if (data) {
+            options.body = JSON.stringify(data);
+        }
+
+        try {
+            const response = await fetch(`${this.BASE_URL}/${endpoint}`, options);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('JSONBin API error:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Загружает данные пользователей
+     */
+    async loadUsersData() {
+        try {
+            const response = await this.apiRequest(this.USERS_BIN_ID);
+            return response.record;
+        } catch (error) {
+            console.error('Error loading users data:', error);
+            // Возвращаем пустую структуру при ошибке
+            return {
+                users: [],
+                metadata: {
+                    version: "1.0.0",
+                    created: Date.now(),
+                    lastUpdate: Date.now(),
+                    totalUsers: 0
+                }
+            };
+        }
+    }
+
+    /**
+     * Сохраняет данные пользователей
+     */
+    async saveUsersData(usersData) {
+        try {
+            // Обновляем метаданные
+            usersData.metadata.lastUpdate = Date.now();
+            usersData.metadata.totalUsers = usersData.users.length;
+            
+            await this.apiRequest(this.USERS_BIN_ID, 'PUT', usersData);
+            return true;
+        } catch (error) {
+            console.error('Error saving users data:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Находит или создает пользователя в данных
+     */
+    findOrCreateUser(usersData) {
+        let user = usersData.users.find(u => u.userId === this.userId);
+        
+        if (!user) {
+            // Создаем нового пользователя
+            user = {
+                userId: this.userId,
+                unlockedLevels: [0], // Первый уровень открыт по умолчанию
+                completedLevels: [],
+                bestTimes: {},
+                totalScore: 0,
+                totalPlayTime: 0,
+                achievements: [],
+                settings: {
+                    volume: 1,
+                    controls: "default",
+                    graphics: "medium"
+                },
+                statistics: {
+                    totalJumps: 0,
+                    totalDeaths: 0,
+                    crystalsCollected: 0,
+                    enemiesDefeated: 0
+                },
+                lastSaved: Date.now()
+            };
+            
+            usersData.users.push(user);
+        }
+        
+        return user;
+    }
+
+    /**
+     * Сохраняет прогресс игрока
+     */
+    async saveProgress(progressData) {
+        try {
+            const usersData = await this.loadUsersData();
+            const user = this.findOrCreateUser(usersData);
+            
+            // Обновляем данные пользователя
+            if (progressData.unlockedLevels) {
+                user.unlockedLevels = progressData.unlockedLevels;
+            }
+            if (progressData.completedLevels) {
+                user.completedLevels = progressData.completedLevels;
+            }
+            if (progressData.bestTimes) {
+                user.bestTimes = { ...user.bestTimes, ...progressData.bestTimes };
+            }
+            if (progressData.totalScore !== undefined) {
+                user.totalScore = progressData.totalScore;
+            }
+            if (progressData.achievements) {
+                user.achievements = progressData.achievements;
+            }
+            if (progressData.statistics) {
+                user.statistics = { ...user.statistics, ...progressData.statistics };
+            }
+            if (progressData.settings) {
+                user.settings = { ...user.settings, ...progressData.settings };
+            }
+            
+            user.lastSaved = Date.now();
+            
+            // Сохраняем обновленные данные
+            const success = await this.saveUsersData(usersData);
+            
+            if (success) {
+                console.log('Progress saved successfully');
+            }
+            
+            return success;
+        } catch (error) {
+            console.error('Error saving progress:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Загружает прогресс игрока
+     */
+    async loadProgress() {
+        try {
+            const usersData = await this.loadUsersData();
+            const user = this.findOrCreateUser(usersData);
+            
+            return {
+                userId: user.userId,
+                unlockedLevels: user.unlockedLevels || [0],
+                completedLevels: user.completedLevels || [],
+                bestTimes: user.bestTimes || {},
+                totalScore: user.totalScore || 0,
+                totalPlayTime: user.totalPlayTime || 0,
+                achievements: user.achievements || [],
+                settings: user.settings || {
+                    volume: 1,
+                    controls: "default",
+                    graphics: "medium"
+                },
+                statistics: user.statistics || {
+                    totalJumps: 0,
+                    totalDeaths: 0,
+                    crystalsCollected: 0,
+                    enemiesDefeated: 0
+                }
+            };
+        } catch (error) {
+            console.error('Error loading progress:', error);
+            // Возвращаем дефолтные данные при ошибке
+            return {
+                userId: this.userId,
+                unlockedLevels: [0],
+                completedLevels: [],
+                bestTimes: {},
+                totalScore: 0,
+                totalPlayTime: 0,
+                achievements: [],
+                settings: {
+                    volume: 1,
+                    controls: "default",
+                    graphics: "medium"
+                },
+                statistics: {
+                    totalJumps: 0,
+                    totalDeaths: 0,
+                    crystalsCollected: 0,
+                    enemiesDefeated: 0
+                }
+            };
+        }
+    }
+
+    /**
+     * Загружает данные таблицы лидеров
+     */
+    async loadLeaderboard() {
+        try {
+            const response = await this.apiRequest(this.LEADERBOARD_BIN_ID);
+            return response.record || [];
+        } catch (error) {
+            console.error('Error loading leaderboard:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Сохраняет результат в таблицу лидеров
+     */
+    async saveLeaderboardEntry(name, score, level, time) {
+        try {
+            const leaderboard = await this.loadLeaderboard();
+            
+            const entry = {
+                id: 'score_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now(),
+                name: {
+                    name: name,
+                    score: score,
+                    level: level,
+                    time: time
+                },
+                level: level,
+                time: time,
+                timestamp: Date.now()
+            };
+            
+            leaderboard.push(entry);
+            
+            // Сортируем по времени (лучшее время = меньшее значение)
+            leaderboard.sort((a, b) => a.time - b.time);
+            
+            // Оставляем только топ 100 результатов
+            if (leaderboard.length > 100) {
+                leaderboard.splice(100);
+            }
+            
+            await this.apiRequest(this.LEADERBOARD_BIN_ID, 'PUT', leaderboard);
+            return true;
+        } catch (error) {
+            console.error('Error saving leaderboard entry:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Очищает локальный ID пользователя (для тестирования)
+     */
+    clearUserId() {
+        localStorage.removeItem('chronoPlatformerUserId');
+        this.userId = this.getUserId();
+    }
+}
+

@@ -16,6 +16,11 @@ import { Door } from './game/Door.js';
 import { ParticleSystem } from './engine/ParticleSystem.js';
 import { Camera } from './engine/Camera.js';
 import { FallingBlock } from './game/FallingBlock.js';
+// Новые системы
+import { Crystal } from './game/Crystal.js';
+import SpecialBlocks from './game/SpecialBlocks.js';
+import { PowerUp, PowerUpManager } from './game/PowerUp.js';
+import { ObjectiveSystem, SecretArea } from './game/GameObjectives.js';
 
 /**
  * Точка входа в игру - инициализируется после загрузки DOM
@@ -52,16 +57,30 @@ window.addEventListener('load', function() {
             this.ui = new UI(this);
             this.inputHandler = new InputHandler(canvas, this.ui);
             
+            // Инициализация новых систем
+            this.powerUpManager = new PowerUpManager();
+            this.objectiveSystem = new ObjectiveSystem();
+            
             this.enemies = [];
             this.platforms = [];
             this.keys = [];
             this.doors = [];
             this.fallingBlocks = [];
+            
+            // Новые массивы для новых систем
+            this.crystals = [];
+            this.specialBlocks = [];
+            this.powerUps = [];
+            this.secretAreas = [];
+            
             this.player = null;
             this.goal = null;
 
             const saveData = this.saveManager.load();
             if (saveData && saveData.highScore) this.highScore = saveData.highScore;
+
+            // Регистрируем игру глобально для доступа из других систем
+            window.gameInstance = this;
 
             this.setupEventListeners();
         },
@@ -71,6 +90,7 @@ window.addEventListener('load', function() {
          */
         loadAssets() {
             this.gameState = 'loading';
+            // Загрузка оригинальных спрайтов игрока
             this.assetManager.queueImage('player_idle', './assets/images/player_idle.png');
             this.assetManager.queueImage('player_run', './assets/images/player_run.png');
             this.assetManager.queueImage('player_jump', './assets/images/player_jump.png');
@@ -82,7 +102,18 @@ window.addEventListener('load', function() {
                 { name: 'jump', path: './assets/audio/jump.mp3' },
                 { name: 'background', path: './assets/audio/land.mp3' },
                 { name: 'enemy_stomp', path: './assets/audio/enemy_stomp.mp3' },
-                { name: 'footstep', path: './assets/audio/footstep.mp3' }
+                { name: 'footstep', path: './assets/audio/footstep.mp3' },
+                // Новые звуки для новых механик
+                { name: 'crystal_collect', path: './assets/audio/crystal_collect.mp3' },
+                { name: 'crystal_rare', path: './assets/audio/crystal_rare.mp3' },
+                { name: 'crystal_legendary', path: './assets/audio/crystal_legendary.mp3' },
+                { name: 'powerup_collect', path: './assets/audio/powerup_collect.mp3' },
+                { name: 'powerup_expire', path: './assets/audio/powerup_expire.mp3' },
+                { name: 'spring_bounce', path: './assets/audio/spring_bounce.mp3' },
+                { name: 'teleport', path: './assets/audio/teleport.mp3' },
+                { name: 'switch_activate', path: './assets/audio/switch_activate.mp3' },
+                { name: 'objective_complete', path: './assets/audio/objective_complete.mp3' },
+                { name: 'secret_found', path: './assets/audio/secret_found.mp3' }
             ]);
 
             this.assetManager.loadAll(() => this.setupGame());
@@ -146,6 +177,8 @@ window.addEventListener('load', function() {
                         if (this.gameState === 'loadingLevel') {
                             this.gameState = 'playing';
                             this.audioManager.init();
+                            // Останавливаем текущую музыку перед запуском новой
+                            this.audioManager.stopBackgroundMusic();
                             this.audioManager.playBackgroundMusic('background');
                         }
                         return;
@@ -156,39 +189,42 @@ window.addEventListener('load', function() {
                 }
             }
 
-            const levelPaths = [
-                './assets/levels/level1.json',
-                './assets/levels/level2.json',
-                './assets/levels/level3.json',
-                './assets/levels/level4.json',
-                './assets/levels/level5.json',
-                './assets/levels/level6.json',
-                './assets/levels/level7.json',
-                './assets/levels/level8.json',
-                './assets/levels/level9.json',
-                './assets/levels/level10.json',
-                './assets/levels/level11.json',
-                './assets/levels/level12.json'
-            ];
+            // Загружаем список уровней динамически
+            if (!this.levelsList) {
+                try {
+                    const response = await fetch('./assets/levels/levels_list.json');
+                    if (!response.ok) {
+                        throw new Error('Cannot load levels list');
+                    }
+                    const levelsData = await response.json();
+                    this.levelsList = levelsData.levels;
+                } catch (error) {
+                    console.error('Ошибка загрузки списка уровней:', error);
+                    this.gameState = 'error';
+                    return;
+                }
+            }
             
-            const levelPath = levelPaths[levelIndex];
-
-            if (!levelPath) {
+            const levelInfo = this.levelsList[levelIndex];
+            if (!levelInfo) {
                 this.gameState = 'gameWon';
                 return;
             }
 
             try {
-                const levelData = await this.level.load(levelPath);
+                const levelData = await this.level.load(levelInfo.path);
                 await this.initializeLevel();
                 
                 if (this.gameState === 'loadingLevel') {
                     this.gameState = 'playing';
                     this.audioManager.init();
+                    // Останавливаем текущую музыку перед запуском новой
+                    this.audioManager.stopBackgroundMusic();
                     this.audioManager.playBackgroundMusic('background');
                 }
 
             } catch (error) {
+                console.error('Ошибка загрузки уровня:', error);
                 this.gameState = 'error';
             }
         },
@@ -197,6 +233,7 @@ window.addEventListener('load', function() {
             // Инициализация сущностей из данных уровня
             // this.level уже содержит загруженные данные
             
+            // Создание объекта спрайтов
             const playerSprites = {
                 idle: this.assetManager.getImage('player_idle'),
                 run: this.assetManager.getImage('player_run'),
@@ -215,6 +252,7 @@ window.addEventListener('load', function() {
                 audioManager: this.audioManager,
                 timeManager: this.timeManager,
                 particleSystem: this.particleSystem,
+                powerUpManager: this.powerUpManager
             });
 
             const enemySpritesheet = this.assetManager.getImage('enemy_walk');
@@ -231,6 +269,35 @@ window.addEventListener('load', function() {
             
             // Создаем падающие блоки из данных уровня
             this.fallingBlocks = (this.level.fallingBlocks || []).map(data => new FallingBlock(data.x, data.y, data.width || 32, data.height || 32));
+            
+            // === ИНИЦИАЛИЗАЦИЯ НОВЫХ СИСТЕМ ===
+            
+            // Инициализация кристаллов
+            this.crystals = (this.level.crystals || []).map(data => 
+                new Crystal(data.x, data.y, data.type || 'common', data.value || 10, this.particleSystem)
+            );
+            
+            // Инициализация специальных блоков
+            this.specialBlocks = (this.level.specialBlocks || []).map(data => {
+                const blockClass = SpecialBlocks[data.type.charAt(0).toUpperCase() + data.type.slice(1) + 'Block'];
+                if (blockClass) {
+                    return new blockClass(data.x, data.y, data.width || 32, data.height || 16, data, this.particleSystem, this.audioManager);
+                }
+                return null;
+            }).filter(block => block !== null);
+            
+            // Инициализация power-ups
+            this.powerUps = (this.level.powerUps || []).map(data =>
+                new PowerUp(data.x, data.y, data.type, data.duration || 5000, this.particleSystem, this.audioManager)
+            );
+            
+            // Инициализация секретных областей
+            this.secretAreas = (this.level.secretAreas || []).map(data =>
+                new SecretArea(data.id, data.x, data.y, data.width, data.height, data.reward, data.requiredAction)
+            );
+            
+            // Инициализация системы целей
+            this.objectiveSystem.initializeLevelObjectives(this.level);
             
             const goalData = this.level.entities.find(e => e.type === 'goal');
             this.goal = goalData ? new Goal(goalData.x, goalData.y) : null;
@@ -282,6 +349,20 @@ window.addEventListener('load', function() {
             // Удаляем блоки, которые нужно убрать
             this.fallingBlocks = this.fallingBlocks.filter(block => !block.shouldBeRemoved);
 
+            // --- Обновление новых систем ---
+            // Обновляем кристаллы
+            this.crystals.forEach(crystal => crystal.update(scaledDeltaTime, this.player.position));
+            
+            // Обновляем power-ups  
+            this.powerUps.forEach(powerUp => powerUp.update(scaledDeltaTime));
+            this.powerUpManager.update(scaledDeltaTime);
+            
+            // Обновляем специальные блоки
+            this.specialBlocks.forEach(block => block.update(scaledDeltaTime));
+            
+            // Обновляем систему целей
+            this.objectiveSystem.update(scaledDeltaTime);
+
             // --- Обновление Игрока ---
             const playerStatus = this.player.update(
                 scaledDeltaTime,
@@ -293,7 +374,11 @@ window.addEventListener('load', function() {
                 this.keys,
                 this.doors,
                 this.goal,
-                this.fallingBlocks
+                this.fallingBlocks,
+                // Новые параметры
+                this.crystals,
+                this.powerUps,
+                this.specialBlocks
             );
 
             // --- Обработка Статуса Игрока ---
@@ -305,11 +390,12 @@ window.addEventListener('load', function() {
             // ИСПРАВЛЕНО: Обработка завершения уровня
             if (playerStatus.levelComplete) {
                 this.currentLevelIndex++;
-                // Проверяем, есть ли следующий уровень (теперь у нас 7 стандартных уровней)
-                if (this.currentLevelIndex < 7) {
+                // Проверяем, есть ли следующий уровень (используем динамический список)
+                const hasNextLevel = this.levelsList && this.currentLevelIndex < this.levelsList.length;
+                if (hasNextLevel) {
                     // Эта асинхронная функция установит 'loadingLevel' и приостановит update
                     this.loadLevel(this.currentLevelIndex);
-                } else if (this.currentLevelIndex === 7) {
+                } else {
                     // Пробуем загрузить пользовательский уровень
                     const customLevel = localStorage.getItem('customLevel');
                     if (customLevel) {
@@ -318,9 +404,6 @@ window.addEventListener('load', function() {
                         // Нет пользовательского уровня - игра завершена
                         this.gameState = 'gameWon';
                     }
-                } else {
-                    // Пользовательский уровень тоже пройден
-                    this.gameState = 'gameWon';
                 }
                 return; // Прекращаем обновление в этом кадре
             }
@@ -347,6 +430,13 @@ window.addEventListener('load', function() {
                 this.doors.forEach(d => d.draw(ctx));
                 this.keys.forEach(k => k.draw(ctx));
                 this.fallingBlocks.forEach(block => block.draw(ctx, this.camera));
+                
+                // Отрисовка новых элементов
+                this.specialBlocks.forEach(block => block.draw(ctx));
+                this.crystals.forEach(crystal => crystal.draw(ctx));
+                this.powerUps.forEach(powerUp => powerUp.draw(ctx));
+                this.secretAreas.forEach(area => area.draw(ctx));
+                
                 if (this.goal) this.goal.draw(ctx);
                 if (this.enemies) {
                     this.enemies.forEach((enemy, index) => {

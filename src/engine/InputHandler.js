@@ -20,7 +20,7 @@ export class InputHandler {
         // --- Мышь ---
         this.canvas.addEventListener('click', (e) => {
             // Мышь используется только для UI в меню
-            if (['mainMenu', 'settings'].includes(this.ui.game.gameState)) {
+            if (['mainMenu', 'settings', 'levelSelect'].includes(this.ui.game.gameState)) {
                 const rect = this.canvas.getBoundingClientRect();
                 const scaleX = this.canvas.width / rect.width;
                 const scaleY = this.canvas.height / rect.height;
@@ -32,6 +32,21 @@ export class InputHandler {
             }
         });
 
+        // Обработка прокрутки колесом мыши для экрана выбора уровней
+        this.canvas.addEventListener('wheel', (e) => {
+            if (this.ui.game.gameState === 'levelSelect') {
+                e.preventDefault();
+                const scrollSpeed = 50;
+                if (e.deltaY > 0) {
+                    // Прокрутка вниз
+                    this.ui.levelSelectConfig.scrollOffset += scrollSpeed;
+                } else {
+                    // Прокрутка вверх
+                    this.ui.levelSelectConfig.scrollOffset = Math.max(0, this.ui.levelSelectConfig.scrollOffset - scrollSpeed);
+                }
+            }
+        });
+
         // --- Сенсорное управление ---
         if (this.ui.isTouchDevice) {
             this.canvas.addEventListener('touchstart', (e) => {
@@ -40,7 +55,7 @@ export class InputHandler {
                 const scaleY = this.canvas.height / rect.height;
 
                 // В меню, касания эмулируют клики по UI
-                if (['mainMenu', 'settings'].includes(this.ui.game.gameState)) {
+                if (['mainMenu', 'settings', 'levelSelect'].includes(this.ui.game.gameState)) {
                     e.preventDefault(); // Предотвращаем генерацию click, чтобы не было двойного срабатывания
                     for (const touch of e.changedTouches) {
                         const x = (touch.clientX - rect.left) * scaleX;

@@ -4,7 +4,6 @@ export class Door {
         this.width = 32;
         this.height = 64;
         this.isLocked = true;
-        console.log(`Door создана на позиции: x=${x}, y=${y}, size=${this.width}x${this.height}, locked=${this.isLocked}`);
     }
 
     draw(context) {

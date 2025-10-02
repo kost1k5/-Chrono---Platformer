@@ -51,6 +51,10 @@ class LevelEditor {
             entities: [],
             movingPlatforms: [],
             fallingBlocks: [],
+            specialBlocks: [],
+            crystals: [],
+            powerUps: [],
+            objectives: [],
             backgroundLayers: [
                 { color: '#87CEEB', scrollFactor: 0.0 } // Дефолтный голубой фон
             ]
@@ -192,6 +196,33 @@ class LevelEditor {
                 case 'KeyT':
                     this.selectTool('platform');
                     break;
+                case 'KeyK':
+                    this.selectTool('key');
+                    break;
+                case 'KeyD':
+                    this.selectTool('door');
+                    break;
+                case 'KeyC':
+                    this.selectTool('crystal');
+                    break;
+                case 'KeyU':
+                    this.selectTool('powerup');
+                    break;
+                case 'KeyM':
+                    this.selectTool('movingPlatform');
+                    break;
+                case 'Digit1':
+                    this.selectTool('spring');
+                    break;
+                case 'Digit2':
+                    this.selectTool('conveyor');
+                    break;
+                case 'Digit3':
+                    this.selectTool('ice');
+                    break;
+                case 'Digit4':
+                    this.selectTool('teleporter');
+                    break;
                 case 'KeyS':
                     if (!e.ctrlKey && !e.metaKey) {
                         this.selectTool('select');
@@ -253,10 +284,18 @@ class LevelEditor {
                 this.selectEntity(pos);
             } else if (this.selectedTool === 'wall' || this.selectedTool === 'empty') {
                 this.paintTile(pos);
-            } else if (['player', 'enemy', 'goal'].includes(this.selectedTool)) {
+            } else if (['player', 'enemy', 'goal', 'key', 'door'].includes(this.selectedTool)) {
                 this.placeEntity(pos);
             } else if (this.selectedTool === 'platform') {
                 this.placePlatform(pos);
+            } else if (this.selectedTool === 'crystal') {
+                this.placeCrystal(pos);
+            } else if (this.selectedTool === 'powerup') {
+                this.placePowerUp(pos);
+            } else if (['spring', 'conveyor', 'ice', 'teleporter'].includes(this.selectedTool)) {
+                this.placeSpecialBlock(pos);
+            } else if (this.selectedTool === 'movingPlatform') {
+                this.placeMovingPlatform(pos);
             }
 
             this.updateUI();
@@ -397,6 +436,93 @@ class LevelEditor {
         this.saveState(); // Сохраняем состояние для undo/redo
     }
 
+    placeCrystal(pos) {
+        const pixelX = pos.tileX * this.tileSize;
+        const pixelY = pos.tileY * this.tileSize;
+
+        const crystal = {
+            x: pixelX,
+            y: pixelY,
+            type: 'common',
+            value: 10
+        };
+
+        if (!this.level.crystals) this.level.crystals = [];
+        this.level.crystals.push(crystal);
+        this.drawEntities();
+        this.updateStats();
+        this.saveState();
+    }
+
+    placePowerUp(pos) {
+        const pixelX = pos.tileX * this.tileSize;
+        const pixelY = pos.tileY * this.tileSize;
+
+        const powerUp = {
+            x: pixelX,
+            y: pixelY,
+            type: 'speed',
+            duration: 5000
+        };
+
+        if (!this.level.powerUps) this.level.powerUps = [];
+        this.level.powerUps.push(powerUp);
+        this.drawEntities();
+        this.updateStats();
+        this.saveState();
+    }
+
+    placeSpecialBlock(pos) {
+        const pixelX = pos.tileX * this.tileSize;
+        const pixelY = pos.tileY * this.tileSize;
+
+        const specialBlock = {
+            x: pixelX,
+            y: pixelY,
+            width: this.tileSize,
+            height: this.tileSize,
+            type: this.selectedTool
+        };
+
+        // Добавляем специфичные свойства для разных типов блоков
+        if (this.selectedTool === 'spring') {
+            specialBlock.strength = 15;
+        } else if (this.selectedTool === 'conveyor') {
+            specialBlock.speed = 100;
+            specialBlock.direction = 'right';
+        } else if (this.selectedTool === 'teleporter') {
+            specialBlock.targetX = pixelX + 200;
+            specialBlock.targetY = pixelY;
+        }
+
+        if (!this.level.specialBlocks) this.level.specialBlocks = [];
+        this.level.specialBlocks.push(specialBlock);
+        this.drawEntities();
+        this.updateStats();
+        this.saveState();
+    }
+
+    placeMovingPlatform(pos) {
+        const pixelX = pos.tileX * this.tileSize;
+        const pixelY = pos.tileY * this.tileSize;
+
+        const movingPlatform = {
+            x: pixelX,
+            y: pixelY,
+            width: 80,
+            height: 16,
+            endX: pixelX + 150,
+            endY: pixelY,
+            speed: 120
+        };
+
+        if (!this.level.movingPlatforms) this.level.movingPlatforms = [];
+        this.level.movingPlatforms.push(movingPlatform);
+        this.drawEntities();
+        this.updateStats();
+        this.saveState();
+    }
+
     // Система undo/redo
     saveState() {
         // Удаляем все состояния после текущего индекса
@@ -449,15 +575,61 @@ class LevelEditor {
         const pixelX = pos.x;
         const pixelY = pos.y;
 
+        // Проверяем основные сущности
         for (let entity of this.level.entities) {
-            const entityWidth = entity.type === 'player' ? 32 : 32;
-            const entityHeight = entity.type === 'player' ? 50 : 32;
+            let entityWidth = 32;
+            let entityHeight = 32;
+            
+            if (entity.type === 'player') {
+                entityHeight = 50;
+            } else if (entity.type === 'door') {
+                entityHeight = 64;
+            } else if (entity.type === 'key') {
+                entityWidth = 24;
+                entityHeight = 24;
+            }
 
             if (pixelX >= entity.x && pixelX < entity.x + entityWidth &&
                 pixelY >= entity.y && pixelY < entity.y + entityHeight) {
                 this.selectedEntity = entity;
                 this.updateEntityProperties();
                 return;
+            }
+        }
+
+        // Проверяем кристаллы
+        if (this.level.crystals) {
+            for (let crystal of this.level.crystals) {
+                if (pixelX >= crystal.x && pixelX < crystal.x + 20 &&
+                    pixelY >= crystal.y && pixelY < crystal.y + 20) {
+                    this.selectedEntity = crystal;
+                    this.updateEntityProperties();
+                    return;
+                }
+            }
+        }
+
+        // Проверяем усиления
+        if (this.level.powerUps) {
+            for (let powerUp of this.level.powerUps) {
+                if (pixelX >= powerUp.x && pixelX < powerUp.x + 24 &&
+                    pixelY >= powerUp.y && pixelY < powerUp.y + 24) {
+                    this.selectedEntity = powerUp;
+                    this.updateEntityProperties();
+                    return;
+                }
+            }
+        }
+
+        // Проверяем специальные блоки
+        if (this.level.specialBlocks) {
+            for (let block of this.level.specialBlocks) {
+                if (pixelX >= block.x && pixelX < block.x + block.width &&
+                    pixelY >= block.y && pixelY < block.y + block.height) {
+                    this.selectedEntity = block;
+                    this.updateEntityProperties();
+                    return;
+                }
             }
         }
 
@@ -544,43 +716,46 @@ class LevelEditor {
     drawEntities() {
         this.entityLayer.innerHTML = '';
 
-        // Рисуем платформы
-        this.level.movingPlatforms.forEach((platform, index) => {
-            const div = document.createElement('div');
-            div.className = 'platform-marker';
-            div.style.left = ((platform.x - this.camera.x) * this.scale) + 'px';
-            div.style.top = ((platform.y - this.camera.y) * this.scale) + 'px';
-            div.style.width = (platform.width * this.scale) + 'px';
-            div.style.height = (platform.height * this.scale) + 'px';
-            div.style.backgroundColor = 'rgba(128, 128, 128, 0.8)';
-            div.style.border = '2px solid #666';
-            div.style.position = 'absolute';
-            div.style.cursor = 'pointer';
-            div.title = `Платформа ${index + 1}`;
+        // Рисуем платформы (проверяем что массив существует)
+        if (this.level.movingPlatforms && Array.isArray(this.level.movingPlatforms)) {
+            this.level.movingPlatforms.forEach((platform, index) => {
+                const div = document.createElement('div');
+                div.className = 'platform-marker';
+                div.style.left = ((platform.x - this.camera.x) * this.scale) + 'px';
+                div.style.top = ((platform.y - this.camera.y) * this.scale) + 'px';
+                div.style.width = (platform.width * this.scale) + 'px';
+                div.style.height = (platform.height * this.scale) + 'px';
+                div.style.backgroundColor = 'rgba(128, 128, 128, 0.8)';
+                div.style.border = '2px solid #666';
+                div.style.position = 'absolute';
+                div.style.cursor = 'pointer';
+                div.title = `Платформа ${index + 1}`;
 
-            // Отображение линии движения
-            const line = document.createElement('div');
-            line.style.position = 'absolute';
-            line.style.borderTop = '2px dashed #666';
-            line.style.pointerEvents = 'none';
+                // Отображение линии движения
+                const line = document.createElement('div');
+                line.style.position = 'absolute';
+                line.style.borderTop = '2px dashed #666';
+                line.style.pointerEvents = 'none';
 
-            const deltaX = platform.endX - platform.x;
-            const deltaY = platform.endY - platform.y;
-            const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-            const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+                const deltaX = platform.endX - platform.x;
+                const deltaY = platform.endY - platform.y;
+                const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
 
-            line.style.width = (length * this.scale) + 'px';
-            line.style.left = ((platform.x - this.camera.x) * this.scale) + 'px';
-            line.style.top = ((platform.y - this.camera.y + platform.height / 2) * this.scale) + 'px';
-            line.style.transformOrigin = '0 0';
-            line.style.transform = `rotate(${angle}deg)`;
+                line.style.width = (length * this.scale) + 'px';
+                line.style.left = ((platform.x - this.camera.x) * this.scale) + 'px';
+                line.style.top = ((platform.y - this.camera.y + platform.height / 2) * this.scale) + 'px';
+                line.style.transformOrigin = '0 0';
+                line.style.transform = `rotate(${angle}deg)`;
 
-            this.entityLayer.appendChild(line);
-            this.entityLayer.appendChild(div);
-        });
+                this.entityLayer.appendChild(line);
+                this.entityLayer.appendChild(div);
+            });
+        }
 
-        // Рисуем сущности
-        this.level.entities.forEach((entity, index) => {
+        // Рисуем сущности (проверяем что массив существует)
+        if (this.level.entities && Array.isArray(this.level.entities)) {
+            this.level.entities.forEach((entity, index) => {
             const div = document.createElement('div');
             div.className = 'entity-marker';
             div.style.left = ((entity.x - this.camera.x) * this.scale) + 'px';
@@ -608,6 +783,19 @@ class LevelEditor {
                     div.style.backgroundColor = 'rgba(64, 255, 64, 0.8)';
                     div.style.border = '2px solid #00CC00';
                     break;
+                case 'key':
+                    div.style.width = (24 * this.scale) + 'px';
+                    div.style.height = (24 * this.scale) + 'px';
+                    div.style.backgroundColor = 'rgba(255, 215, 0, 0.8)';
+                    div.style.border = '2px solid #FFD700';
+                    div.style.borderRadius = '50%';
+                    break;
+                case 'door':
+                    div.style.width = (32 * this.scale) + 'px';
+                    div.style.height = (64 * this.scale) + 'px';
+                    div.style.backgroundColor = 'rgba(139, 69, 19, 0.8)';
+                    div.style.border = '2px solid #8B4513';
+                    break;
             }
 
             // Выделение выбранной сущности
@@ -616,7 +804,121 @@ class LevelEditor {
             }
 
             this.entityLayer.appendChild(div);
-        });
+            });
+        }
+
+        // Рисуем кристаллы
+        if (this.level.crystals && Array.isArray(this.level.crystals)) {
+            this.level.crystals.forEach((crystal, index) => {
+                const div = document.createElement('div');
+                div.className = 'crystal-marker';
+                div.style.left = ((crystal.x - this.camera.x) * this.scale) + 'px';
+                div.style.top = ((crystal.y - this.camera.y) * this.scale) + 'px';
+                div.style.width = (20 * this.scale) + 'px';
+                div.style.height = (20 * this.scale) + 'px';
+                div.style.position = 'absolute';
+                div.style.cursor = 'pointer';
+                div.style.borderRadius = '50%';
+                div.title = `Кристалл ${crystal.type} (${crystal.value})`;
+
+                switch (crystal.type) {
+                    case 'common':
+                        div.style.backgroundColor = 'rgba(0, 255, 255, 0.8)';
+                        div.style.border = '2px solid #00FFFF';
+                        break;
+                    case 'rare':
+                        div.style.backgroundColor = 'rgba(255, 0, 255, 0.8)';
+                        div.style.border = '2px solid #FF00FF';
+                        break;
+                    case 'legendary':
+                        div.style.backgroundColor = 'rgba(255, 215, 0, 0.8)';
+                        div.style.border = '2px solid #FFD700';
+                        break;
+                }
+
+                if (this.selectedEntity === crystal) {
+                    div.style.boxShadow = '0 0 0 3px rgba(255, 255, 0, 0.8)';
+                }
+
+                this.entityLayer.appendChild(div);
+            });
+        }
+
+        // Рисуем усиления
+        if (this.level.powerUps && Array.isArray(this.level.powerUps)) {
+            this.level.powerUps.forEach((powerUp, index) => {
+                const div = document.createElement('div');
+                div.className = 'powerup-marker';
+                div.style.left = ((powerUp.x - this.camera.x) * this.scale) + 'px';
+                div.style.top = ((powerUp.y - this.camera.y) * this.scale) + 'px';
+                div.style.width = (24 * this.scale) + 'px';
+                div.style.height = (24 * this.scale) + 'px';
+                div.style.position = 'absolute';
+                div.style.cursor = 'pointer';
+                div.title = `Усиление ${powerUp.type} (${powerUp.duration}ms)`;
+
+                switch (powerUp.type) {
+                    case 'speed':
+                        div.style.backgroundColor = 'rgba(255, 255, 0, 0.8)';
+                        div.style.border = '2px solid #FFFF00';
+                        break;
+                    case 'jump':
+                        div.style.backgroundColor = 'rgba(0, 255, 0, 0.8)';
+                        div.style.border = '2px solid #00FF00';
+                        break;
+                    case 'invincible':
+                        div.style.backgroundColor = 'rgba(255, 0, 0, 0.8)';
+                        div.style.border = '2px solid #FF0000';
+                        break;
+                }
+
+                if (this.selectedEntity === powerUp) {
+                    div.style.boxShadow = '0 0 0 3px rgba(255, 255, 0, 0.8)';
+                }
+
+                this.entityLayer.appendChild(div);
+            });
+        }
+
+        // Рисуем специальные блоки
+        if (this.level.specialBlocks && Array.isArray(this.level.specialBlocks)) {
+            this.level.specialBlocks.forEach((block, index) => {
+                const div = document.createElement('div');
+                div.className = 'special-block-marker';
+                div.style.left = ((block.x - this.camera.x) * this.scale) + 'px';
+                div.style.top = ((block.y - this.camera.y) * this.scale) + 'px';
+                div.style.width = (block.width * this.scale) + 'px';
+                div.style.height = (block.height * this.scale) + 'px';
+                div.style.position = 'absolute';
+                div.style.cursor = 'pointer';
+                div.title = `Спец. блок ${block.type}`;
+
+                switch (block.type) {
+                    case 'spring':
+                        div.style.backgroundColor = 'rgba(255, 192, 203, 0.8)';
+                        div.style.border = '2px solid #FFB6C1';
+                        break;
+                    case 'conveyor':
+                        div.style.backgroundColor = 'rgba(128, 128, 128, 0.8)';
+                        div.style.border = '2px solid #696969';
+                        break;
+                    case 'ice':
+                        div.style.backgroundColor = 'rgba(173, 216, 230, 0.8)';
+                        div.style.border = '2px solid #ADD8E6';
+                        break;
+                    case 'teleporter':
+                        div.style.backgroundColor = 'rgba(138, 43, 226, 0.8)';
+                        div.style.border = '2px solid #8A2BE2';
+                        break;
+                }
+
+                if (this.selectedEntity === block) {
+                    div.style.boxShadow = '0 0 0 3px rgba(255, 255, 0, 0.8)';
+                }
+
+                this.entityLayer.appendChild(div);
+            });
+        }
     }
 
     updateEntityProperties() {
@@ -824,11 +1126,22 @@ class LevelEditor {
             try {
                 const levelData = JSON.parse(e.target.result);
                 
-                // Обеспечиваем наличие фона если его нет
+                // Обеспечиваем наличие всех необходимых свойств
                 if (!levelData.backgroundLayers) {
                     levelData.backgroundLayers = [
                         { color: '#87CEEB', scrollFactor: 0.0 }
                     ];
+                }
+                
+                // Инициализируем массивы если они отсутствуют
+                if (!levelData.entities) {
+                    levelData.entities = [];
+                }
+                if (!levelData.movingPlatforms) {
+                    levelData.movingPlatforms = [];
+                }
+                if (!levelData.fallingBlocks) {
+                    levelData.fallingBlocks = [];
                 }
                 
                 this.level = levelData;
@@ -859,10 +1172,18 @@ class LevelEditor {
     }
 
     async saveLevel() {
-        // Для GitHub Pages всегда используем скачивание файла
-        const levelName = this.promptForLevelName();
-        if (!levelName) return; // Пользователь отменил
+        console.log('saveLevel() вызвана'); // Отладка
         
+        // Для GitHub Pages всегда используем скачивание файла
+        const levelName = await this.promptForLevelName();
+        console.log('Выбранное имя:', levelName); // Отладка
+        
+        if (!levelName) {
+            console.log('Пользователь отменил сохранение'); // Отладка
+            return; // Пользователь отменил
+        }
+        
+        console.log('Начинаем скачивание файла:', levelName); // Отладка
         this.downloadLevelFile(levelName);
     }
     
@@ -963,15 +1284,184 @@ class LevelEditor {
     }
     
     downloadLevelFile(levelName) {
-        // Fallback функция для скачивания файла
-        const dataStr = JSON.stringify(this.level, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(dataBlob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = levelName.endsWith('.json') ? levelName : `${levelName}.json`;
-        link.click();
-        URL.revokeObjectURL(url);
+        console.log('downloadLevelFile() вызвана с именем:', levelName);
+        
+        try {
+            // Проверяем данные уровня
+            if (!this.level || Object.keys(this.level).length === 0) {
+                alert('❌ Нет данных для сохранения! Создайте уровень сначала.');
+                return;
+            }
+            
+            // Проверяем что levelName - это строка
+            if (typeof levelName !== 'string') {
+                console.error('levelName не является строкой:', typeof levelName, levelName);
+                alert('❌ Ошибка: некорректное имя файла');
+                return;
+            }
+            
+            // Функция для скачивания файла (GitHub Pages версия)
+            const dataStr = JSON.stringify(this.level, null, 2);
+            console.log('Данные уровня подготовлены, размер:', dataStr.length);
+            
+            const filename = levelName.endsWith('.json') ? levelName : `${levelName}.json`;
+            
+            // Проверяем возможности браузера
+            const hasDownloadSupport = 'download' in document.createElement('a');
+            const hasBlobSupport = typeof Blob !== 'undefined';
+            const hasUrlSupport = typeof URL !== 'undefined' && URL.createObjectURL;
+            
+            console.log('Поддержка браузера:', {
+                download: hasDownloadSupport,
+                blob: hasBlobSupport,
+                url: hasUrlSupport
+            });
+            
+            if (!hasBlobSupport) {
+                console.warn('Blob API не поддерживается');
+                this.fallbackSave(dataStr, filename);
+                return;
+            }
+            
+            // Более надёжный способ скачивания
+            if (navigator.msSaveBlob) {
+                // IE/Edge legacy
+                const blob = new Blob([dataStr], { type: 'application/json;charset=utf-8' });
+                navigator.msSaveBlob(blob, filename);
+                console.log('Скачивание через IE/Edge API');
+                alert(`✅ Файл "${filename}" сохранён!`);
+            } else if (hasDownloadSupport && hasUrlSupport) {
+                // Современные браузеры
+                const dataBlob = new Blob([dataStr], { type: 'application/json;charset=utf-8' });
+                const url = URL.createObjectURL(dataBlob);
+                
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                link.style.display = 'none';
+                
+                // Важно: добавляем в DOM, кликаем, затем удаляем
+                document.body.appendChild(link);
+                console.log('Ссылка добавлена в DOM, инициируем клик...');
+                
+                // Пробуем разные методы клика
+                let clickWorked = false;
+                try {
+                    link.click();
+                    clickWorked = true;
+                    console.log('Стандартный клик выполнен');
+                } catch (e) {
+                    console.log('Стандартный клик не сработал, пробуем dispatchEvent');
+                    try {
+                        link.dispatchEvent(new MouseEvent('click', {
+                            bubbles: true,
+                            cancelable: true,
+                            view: window
+                        }));
+                        clickWorked = true;
+                        console.log('dispatchEvent клик выполнен');
+                    } catch (e2) {
+                        console.log('dispatchEvent не сработал:', e2);
+                    }
+                }
+                
+                // Очистка ресурсов
+                setTimeout(() => {
+                    if (link.parentNode) {
+                        document.body.removeChild(link);
+                    }
+                    URL.revokeObjectURL(url);
+                    console.log('Ссылка удалена, URL освобождён');
+                }, 200);
+                
+                if (clickWorked) {
+                    // Показываем уведомление с инструкциями
+                    setTimeout(() => {
+                        const message = `🎯 Скачивание "${filename}" инициировано!\n\n` +
+                                      `� Проверьте папку "Загрузки" на вашем компьютере.\n\n` +
+                                      `❓ Если файл не скачался:\n` +
+                                      `• Проверьте настройки браузера (разрешите загрузки)\n` +
+                                      `• Отключите блокировщик всплывающих окон\n` +
+                                      `• Попробуйте другой браузер (Chrome, Firefox)\n\n` +
+                                      `💡 В крайнем случае откройте консоль (F12) - там будут данные для копирования.`;
+                        alert(message);
+                    }, 100);
+                } else {
+                    console.log('Все методы клика не сработали, пробуем fallback');
+                    this.fallbackSave(dataStr, filename);
+                }
+            } else {
+                console.log('Современные методы не поддерживаются, используем fallback');
+                this.fallbackSave(dataStr, filename);
+            }
+            
+            // Логируем данные в консоль для ручного сохранения
+            console.log('=== ДАННЫЕ ДЛЯ РУЧНОГО СОХРАНЕНИЯ ===');
+            console.log('Имя файла:', filename);
+            console.log('Содержимое файла:');
+            console.log(dataStr);
+            console.log('=== КОНЕЦ ДАННЫХ ===');
+            
+        } catch (error) {
+            console.error('Ошибка при скачивании:', error);
+            alert('❌ Ошибка при скачивании файла: ' + error.message + '\n\nДанные выведены в консоль (нажмите F12).');
+            // В случае ошибки также выводим данные в консоль
+            console.log('ДАННЫЕ ДЛЯ РУЧНОГО СОХРАНЕНИЯ:', JSON.stringify(this.level, null, 2));
+        }
+    }
+    
+    // Резервный метод сохранения
+    fallbackSave(dataStr, filename) {
+        console.log('Используем резервный метод сохранения');
+        
+        // Пытаемся открыть данные в новом окне
+        try {
+            const newWindow = window.open('', '_blank');
+            if (newWindow) {
+                newWindow.document.write('<pre>' + dataStr + '</pre>');
+                newWindow.document.title = filename;
+                alert(`📄 Данные уровня открыты в новом окне.\n\nСкопируйте содержимое и сохраните как "${filename}"`);
+            } else {
+                throw new Error('Не удалось открыть новое окно');
+            }
+        } catch (e) {
+            console.log('Новое окно не открылось, показываем prompt');
+            // Последний резерв - показать данные в prompt
+            const shouldShowData = confirm(
+                `⚠️ Автоматическое скачивание не поддерживается.\n\n` +
+                `Хотите увидеть данные уровня для ручного сохранения?\n\n` +
+                `(Нажмите OK, чтобы скопировать данные)`
+            );
+            
+            if (shouldShowData) {
+                // Создаем текстовую область для удобного копирования
+                const textarea = document.createElement('textarea');
+                textarea.value = dataStr;
+                textarea.style.position = 'fixed';
+                textarea.style.top = '50%';
+                textarea.style.left = '50%';
+                textarea.style.transform = 'translate(-50%, -50%)';
+                textarea.style.width = '80%';
+                textarea.style.height = '60%';
+                textarea.style.zIndex = '10000';
+                textarea.style.background = 'white';
+                textarea.style.border = '2px solid #333';
+                textarea.style.padding = '10px';
+                
+                document.body.appendChild(textarea);
+                textarea.select();
+                textarea.focus();
+                
+                alert(`📋 Данные выделены в текстовой области.\n\nНажмите Ctrl+C для копирования, затем сохраните как "${filename}"`);
+                
+                // Удаляем элемент через 30 секунд
+                setTimeout(() => {
+                    if (textarea.parentNode) {
+                        document.body.removeChild(textarea);
+                    }
+                }, 30000);
+            }
+        }
     }
 
     testLevel() {
@@ -1132,11 +1622,22 @@ function loadLevelFile(filename) {
     fetch(`./assets/levels/${filename}`)
         .then(response => response.json())
         .then(data => {
-            // Обеспечиваем наличие фона если его нет
+            // Обеспечиваем наличие всех необходимых свойств
             if (!data.backgroundLayers) {
                 data.backgroundLayers = [
                     { color: '#87CEEB', scrollFactor: 0.0 }
                 ];
+            }
+            
+            // Инициализируем массивы если они отсутствуют
+            if (!data.entities) {
+                data.entities = [];
+            }
+            if (!data.movingPlatforms) {
+                data.movingPlatforms = [];
+            }
+            if (!data.fallingBlocks) {
+                data.fallingBlocks = [];
             }
             
             editor.level = data;
@@ -1162,7 +1663,10 @@ function loadCustomLevel() {
 }
 
 function saveLevel() {
-    editor?.saveLevel();
+    editor?.saveLevel().catch(error => {
+        console.error('Ошибка при сохранении:', error);
+        alert('❌ Ошибка при сохранении: ' + error.message);
+    });
 }
 
 function exportLevel() {
@@ -1183,10 +1687,15 @@ function clearLevel() {
         editor.level.entities = [];
         editor.level.movingPlatforms = [];
         editor.level.fallingBlocks = [];
+        editor.level.specialBlocks = [];
+        editor.level.crystals = [];
+        editor.level.powerUps = [];
+        editor.level.objectives = [];
         editor.selectedEntity = null;
         editor.updateEntityProperties();
         editor.drawLevel();
         editor.updateStats();
+        updateObjectivesList();
         editor.saveState();
     }
 }
@@ -1231,4 +1740,57 @@ function deleteSelected() {
 
 function closeModal(modalId) {
     document.getElementById(modalId).style.display = 'none';
+}
+
+function addObjective() {
+    if (!editor.level.objectives) editor.level.objectives = [];
+    
+    const type = document.getElementById('objectiveType').value;
+    const value = parseInt(document.getElementById('objectiveValue').value);
+    
+    let objective = { type: type };
+    
+    switch(type) {
+        case 'collect':
+            objective.target = 'crystals';
+            objective.count = value;
+            objective.description = `Собрать ${value} кристаллов`;
+            break;
+        case 'survive':
+            objective.time = value * 1000; // переводим в миллисекунды
+            objective.description = `Выжить ${value} секунд`;
+            break;
+        case 'reach':
+            objective.description = 'Достичь цели';
+            break;
+        case 'time':
+            objective.timeLimit = value * 1000;
+            objective.description = `Пройти за ${value} секунд`;
+            break;
+    }
+    
+    editor.level.objectives.push(objective);
+    updateObjectivesList();
+    editor.saveState();
+}
+
+function updateObjectivesList() {
+    const list = document.getElementById('objectivesList');
+    if (!editor.level.objectives || editor.level.objectives.length === 0) {
+        list.innerHTML = '<em>Цели не установлены</em>';
+        return;
+    }
+    
+    list.innerHTML = editor.level.objectives.map((obj, index) => 
+        `<div style="margin-bottom: 5px; padding: 5px; background: rgba(0,0,0,0.1); border-radius: 3px;">
+            ${obj.description}
+            <button onclick="removeObjective(${index})" style="float: right; font-size: 10px;">✕</button>
+        </div>`
+    ).join('');
+}
+
+function removeObjective(index) {
+    editor.level.objectives.splice(index, 1);
+    updateObjectivesList();
+    editor.saveState();
 }

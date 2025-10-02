@@ -1,0 +1,278 @@
+{
+  "name": "Demo Level - Все новые механики",
+  "width": 2400,
+  "height": 800,
+  "backgroundColor": "#87CEEB",
+  "spawnPoint": { "x": 100, "y": 600 },
+  "goal": { "x": 2200, "y": 600, "width": 64, "height": 64 },
+  
+  "platforms": [
+    {"x": 50, "y": 650, "width": 200, "height": 32},
+    {"x": 350, "y": 600, "width": 150, "height": 32},
+    {"x": 600, "y": 550, "width": 100, "height": 32},
+    {"x": 800, "y": 500, "width": 100, "height": 32},
+    {"x": 1000, "y": 450, "width": 200, "height": 32},
+    {"x": 1300, "y": 500, "width": 150, "height": 32},
+    {"x": 1550, "y": 550, "width": 200, "height": 32},
+    {"x": 1850, "y": 500, "width": 150, "height": 32},
+    {"x": 2100, "y": 600, "width": 200, "height": 32}
+  ],
+  
+  "specialBlocks": [
+    {
+      "type": "spring",
+      "x": 320,
+      "y": 634,
+      "width": 32,
+      "height": 16,
+      "springForce": 25
+    },
+    {
+      "type": "ice", 
+      "x": 600,
+      "y": 534,
+      "width": 100,
+      "height": 16,
+      "friction": 0.1
+    },
+    {
+      "type": "conveyor",
+      "x": 1000,
+      "y": 434,
+      "width": 200,
+      "height": 16,
+      "speed": 100,
+      "direction": 1
+    },
+    {
+      "type": "switch",
+      "x": 1200,
+      "y": 410,
+      "width": 24,
+      "height": 24,
+      "targetId": "secret_door_1",
+      "activated": false
+    },
+    {
+      "type": "teleport",
+      "x": 1500,
+      "y": 510,
+      "width": 32,
+      "height": 32,
+      "targetX": 1700,
+      "targetY": 510,
+      "id": "teleport_1"
+    },
+    {
+      "type": "teleport",
+      "x": 1700,
+      "y": 510,
+      "width": 32,
+      "height": 32,
+      "targetX": 1500,
+      "targetY": 510,
+      "id": "teleport_2"
+    }
+  ],
+  
+  "crystals": [
+    {
+      "x": 150,
+      "y": 610,
+      "type": "common",
+      "value": 10
+    },
+    {
+      "x": 400,
+      "y": 560,
+      "type": "common",
+      "value": 10
+    },
+    {
+      "x": 650,
+      "y": 510,
+      "type": "rare",
+      "value": 25
+    },
+    {
+      "x": 850,
+      "y": 460,
+      "type": "common",
+      "value": 10
+    },
+    {
+      "x": 1100,
+      "y": 410,
+      "type": "rare",
+      "value": 25
+    },
+    {
+      "x": 1350,
+      "y": 460,
+      "type": "common",
+      "value": 10
+    },
+    {
+      "x": 1650,
+      "y": 510,
+      "type": "legendary",
+      "value": 50
+    },
+    {
+      "x": 1900,
+      "y": 460,
+      "type": "rare",
+      "value": 25
+    },
+    {
+      "x": 2150,
+      "y": 560,
+      "type": "common",
+      "value": 10
+    }
+  ],
+  
+  "powerUps": [
+    {
+      "x": 280,
+      "y": 570,
+      "type": "speed",
+      "duration": 5000
+    },
+    {
+      "x": 750,
+      "y": 470,
+      "type": "jump",
+      "duration": 8000
+    },
+    {
+      "x": 1450,
+      "y": 420,
+      "type": "invulnerability",
+      "duration": 6000
+    },
+    {
+      "x": 1800,
+      "y": 470,
+      "type": "magnetism",
+      "duration": 10000
+    }
+  ],
+  
+  "enemies": [
+    {"x": 450, "y": 570, "width": 32, "height": 32, "speed": 50},
+    {"x": 950, "y": 470, "width": 32, "height": 32, "speed": 60},
+    {"x": 1600, "y": 520, "width": 32, "height": 32, "speed": 40}
+  ],
+  
+  "keys": [
+    {"x": 1250, "y": 460, "width": 24, "height": 24}
+  ],
+  
+  "doors": [
+    {
+      "x": 2050,
+      "y": 568,
+      "width": 32,
+      "height": 64,
+      "id": "secret_door_1",
+      "requiresKey": false,
+      "isOpen": false
+    }
+  ],
+  
+  "secretAreas": [
+    {
+      "id": "secret_1",
+      "x": 500,
+      "y": 300,
+      "width": 200,
+      "height": 100,
+      "discovered": false,
+      "reward": {
+        "type": "crystal",
+        "value": 100
+      },
+      "requiredAction": "find"
+    },
+    {
+      "id": "secret_2", 
+      "x": 1400,
+      "y": 250,
+      "width": 150,
+      "height": 80,
+      "discovered": false,
+      "reward": {
+        "type": "powerUp",
+        "powerUpType": "speed",
+        "duration": 10000
+      },
+      "requiredAction": "find"
+    }
+  ],
+  
+  "objectives": [
+    {
+      "id": "collect_all_crystals",
+      "type": "collect",
+      "target": "crystals",
+      "count": 9,
+      "description": "Собрать все кристаллы",
+      "completed": false
+    },
+    {
+      "id": "speed_run",
+      "type": "time",
+      "targetTime": 60000,
+      "description": "Пройти уровень за 60 секунд",
+      "completed": false
+    },
+    {
+      "id": "find_secrets",
+      "type": "secret",
+      "count": 2,
+      "description": "Найти все секретные области",
+      "completed": false
+    },
+    {
+      "id": "no_ground_challenge",
+      "type": "airTime",
+      "minAirTime": 3000,
+      "description": "Провести в воздухе 3 секунды подряд",
+      "completed": false
+    }
+  ],
+  
+  "movingPlatforms": [
+    {
+      "x": 750,
+      "y": 400,
+      "width": 100,
+      "height": 16,
+      "startX": 750,
+      "endX": 900,
+      "startY": 400,
+      "endY": 350,
+      "speed": 80,
+      "direction": 1
+    }
+  ],
+  
+  "metadata": {
+    "description": "Демонстрационный уровень со всеми новыми механиками",
+    "difficulty": "medium",
+    "estimatedTime": 90,
+    "features": [
+      "Пружинящие блоки",
+      "Ледяные блоки", 
+      "Конвейеры",
+      "Переключатели",
+      "Телепорты",
+      "Кристаллы трех типов",
+      "Power-ups всех видов",
+      "Секретные области",
+      "Цели и достижения",
+      "Временные испытания"
+    ]
+  }
+}

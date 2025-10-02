@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; object-src 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.jsonbin.io; img-src 'self' data:; object-src 'none';">
     <title>Улучшенный редактор уровней - Хроно-Платформер</title>
     <style>
         * {
@@ -378,7 +378,7 @@
     <div class="main-container">
         <div class="toolbar">
             <div class="tool-section">
-                <h3>🔧 Инструменты</h3>
+                <h3>🔧 Основные инструменты</h3>
                 <div class="tool-grid">
                     <button class="tool-button active" data-tool="wall">🧱 Стена<br><small>(W)</small></button>
                     <button class="tool-button" data-tool="empty">🌫 Пусто<br><small>(E)</small></button>
@@ -387,6 +387,33 @@
                     <button class="tool-button" data-tool="goal">🏁 Цель<br><small>(G)</small></button>
                     <button class="tool-button" data-tool="platform">📦 Платформа<br><small>(T)</small></button>
                     <button class="tool-button" data-tool="select">👆 Выбор<br><small>(S)</small></button>
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <h3>🗝 Элементы игры</h3>
+                <div class="tool-grid">
+                    <button class="tool-button" data-tool="key">🗝 Ключ<br><small>(K)</small></button>
+                    <button class="tool-button" data-tool="door">🚪 Дверь<br><small>(D)</small></button>
+                    <button class="tool-button" data-tool="crystal">💎 Кристалл<br><small>(C)</small></button>
+                    <button class="tool-button" data-tool="powerup">⚡ Усиление<br><small>(U)</small></button>
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <h3>🎯 Специальные блоки</h3>
+                <div class="tool-grid">
+                    <button class="tool-button" data-tool="spring">🌸 Пружина<br><small>(1)</small></button>
+                    <button class="tool-button" data-tool="conveyor">⬅ Конвейер<br><small>(2)</small></button>
+                    <button class="tool-button" data-tool="ice">🧊 Лёд<br><small>(3)</small></button>
+                    <button class="tool-button" data-tool="teleporter">🌀 Телепорт<br><small>(4)</small></button>
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <h3>🚀 Движущиеся объекты</h3>
+                <div class="tool-grid">
+                    <button class="tool-button" data-tool="movingPlatform">🔄 Движ. платформа<br><small>(M)</small></button>
                 </div>
             </div>
             
@@ -415,6 +442,25 @@
                 </div>
                 <button onclick="addBorders()">➕ Добавить границы</button>
                 <button onclick="fillBottom()">📐 Заполнить низ</button>
+            </div>
+
+            <div class="tool-section">
+                <h3>🎯 Цели уровня</h3>
+                <div class="form-group">
+                    <label>Тип цели:</label>
+                    <select id="objectiveType">
+                        <option value="collect">Собрать предметы</option>
+                        <option value="survive">Выжить</option>
+                        <option value="reach">Достичь цели</option>
+                        <option value="time">За время</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Количество/Время:</label>
+                    <input type="number" id="objectiveValue" value="5" min="1">
+                </div>
+                <button onclick="addObjective()">➕ Добавить цель</button>
+                <div id="objectivesList" style="margin-top: 10px; font-size: 12px;"></div>
             </div>
             
             <div class="tool-section">
@@ -506,7 +552,9 @@
                     <li>Используйте ПКМ для панорамирования</li>
                     <li>Колесо мыши для масштабирования</li>
                     <li>Ctrl+Z/Y для отмены/повтора</li>
-                    <li>Клавиши W,E,P,G,R,T для инструментов</li>
+                    <li>W,E,P,G,R,T для основных инструментов</li>
+                    <li>K,D,C,U,M для элементов игры</li>
+                    <li>1,2,3,4 для специальных блоков</li>
                     <li>Delete для удаления выбранного</li>
                 </ul>
             </div>

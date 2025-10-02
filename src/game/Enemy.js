@@ -7,7 +7,7 @@ export class Enemy {
         this.position = new Vec2(x, y);
         this.velocity = new Vec2(Math.random() > 0.5 ? -speed : speed, 0); // Используем переданную скорость
 
-        this.width = 32;
+        this.width = 45;
         this.height = 50;
         this.isActive = true;
 

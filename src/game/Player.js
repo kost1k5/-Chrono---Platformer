@@ -2,9 +2,11 @@
 import { Vec2 } from '../utils/Vec2.js';
 import { checkAABBCollision } from '../utils/Collision.js';
 import { Sprite } from '../engine/Sprite.js';
+import { PowerUpManager } from './PowerUp.js';
 
 /**
- * Класс игрока - управляет движением, анимацией и взаимодействием главного персонажа
+ * Расширенный класс игрока с поддержкой всех новых механик
+ * Следует принципам SOLID и композиции для гибкости
  */
 export class Player {
     /**
@@ -16,19 +18,24 @@ export class Player {
      * @param {AudioManager} config.audioManager - Менеджер аудио
      * @param {TimeManager} config.timeManager - Менеджер времени
      * @param {ParticleSystem} config.particleSystem - Система частиц
+     * @param {PowerUpManager} config.powerUpManager - Менеджер power-ups
      */
-    constructor(x, y, { sprites, audioManager, timeManager, particleSystem }) {
+    constructor(x, y, { sprites, audioManager, timeManager, particleSystem, powerUpManager }) {
         this.position = new Vec2(x, y);
         this.velocity = new Vec2(0, 0);
+        this.previousPosition = new Vec2(x, y); // Для следов
 
-        this.width = 32;  
+        // Размеры персонажа (как было изначально)
+        this.width = 45;  
         this.height = 50;
 
+        // Основная физика
         this.isGrounded = false;
         this.wasGrounded = false;
         this.onPlatform = null;
         this.ridingPlatform = null;
 
+        // Инвентарь и состояние
         this.hasKey = false;
         this.facingDirection = 1;
         this.jumps = 0;
@@ -36,16 +43,50 @@ export class Player {
         this.isJumping = false;
         this.inputState = { left: false, right: false, jump: false };
 
+        // Менеджеры
         this.audioManager = audioManager;
         this.timeManager = timeManager;
         this.particleSystem = particleSystem;
+        this.powerUpManager = powerUpManager || new PowerUpManager(this);
 
+        // Физические параметры
         this.gravity = 980;
         this.moveSpeed = 250;
         this.jumpForce = 500;
         this.maxSpeedX = 300;
         this.terminalVelocityY = 1000;
         this.friction = 0.85;
+        
+        // === НОВЫЕ СИСТЕМЫ ===
+        
+        // Power-ups система (уже инициализирован в конструкторе)
+        this.speedMultiplier = 1.0;
+        this.jumpMultiplier = 1.0;
+        this.isInvulnerable = false;
+        this.invulnerabilityFlicker = 0;
+        this.magnetRange = 0;
+        this.hasMagnetism = false;
+        
+        // Специальная физика
+        this.onIce = false;
+        this.iceFriction = 0.02;
+        this.onConveyor = false;
+        this.conveyorForce = 0;
+        
+        // Система кристаллов
+        this.crystalsCollected = 0;
+        this.totalScore = 0;
+        
+        // Визуальные эффекты
+        this.trailTimer = 0;
+        this.trailInterval = 50; // мс между следами
+        this.speedEffectThreshold = 200; // Минимальная скорость для эффектов
+        
+        // Взаимодействие с блоками
+        this.lastSpringBounce = 0;
+        this.springCooldown = 200;
+        this.lastTeleportTime = 0;
+        this.teleportCooldown = 500;
 
         this.yOffset = 0;
         
@@ -53,15 +94,41 @@ export class Player {
         this.footstepTimer = 0;
         this.footstepInterval = 400; // Интервал между звуками шагов в миллисекундах
         
+        // Создание системы спрайтов с оригинальными настройками
         this.sprite = new Sprite({
             frameWidth: this.width,
             frameHeight: this.height,
             animations: {
-                idle: { image: sprites.idle, row: 0, frameCount: 1, frameInterval: 0 }, // Статичная idle
-                run: { image: sprites.run, row: 0, frameCount: 6, frameInterval: 80 }, // Быстрая анимация бега
-                jump: { image: sprites.jump, row: 0, frameCount: 1, frameInterval: 100 },
-                fall: { image: sprites.fall, row: 0, frameCount: 1, frameInterval: 100 },
-                doublejump: { image: sprites.doublejump, row: 0, frameCount: 7, frameInterval: 50 }, // Новая анимация двойного прыжка
+                idle: { 
+                    image: sprites.idle, 
+                    row: 0, 
+                    frameCount: 4,  // 4 кадра дыхания
+                    frameInterval: 200  // Медленная анимация дыхания
+                },
+                run: { 
+                    image: sprites.run, 
+                    row: 0, 
+                    frameCount: 6,  // 6 кадров бега
+                    frameInterval: 100  // Быстрая анимация бега
+                },
+                jump: { 
+                    image: sprites.jump, 
+                    row: 0, 
+                    frameCount: 1,  // 1 кадр прыжка
+                    frameInterval: 100 
+                },
+                fall: { 
+                    image: sprites.fall, 
+                    row: 0, 
+                    frameCount: 1,  // 1 кадр падения
+                    frameInterval: 100 
+                },
+                doublejump: { 
+                    image: sprites.doublejump, 
+                    row: 0, 
+                    frameCount: 6,  // 6 кадров двойного прыжка с эффектами
+                    frameInterval: 80   // Быстрая анимация с эффектами
+                }
             }
         });
         
@@ -74,7 +141,7 @@ export class Player {
     }
 
     /**
-     * Основной метод обновления логики игрока
+     * Основной метод обновления логики игрока с поддержкой всех новых механик
      * @param {number} scaledDeltaTime - Масштабированное время дельты
      * @param {number} rawDeltaTime - Немасштабированное время дельты
      * @param {InputHandler} input - Обработчик ввода
@@ -85,18 +152,34 @@ export class Player {
      * @param {Array} doors - Массив дверей
      * @param {Goal} goal - Цель уровня
      * @param {Array} fallingBlocks - Массив падающих блоков
+     * @param {Array} crystals - Массив кристаллов
+     * @param {Array} powerUps - Массив power-ups
      * @returns {Object} Результат обновления с информацией о состоянии игры
      */
-    update(scaledDeltaTime, rawDeltaTime, input, level, enemies, platforms, keys, doors, goal, fallingBlocks = []) {
+    update(scaledDeltaTime, rawDeltaTime, input, level, enemies, platforms, keys, doors, goal, fallingBlocks = [], crystals = [], powerUps = []) {
         const dt = scaledDeltaTime / 1000;
+        
+        // Сохраняем предыдущую позицию для следов
+        this.previousPosition.x = this.position.x;
+        this.previousPosition.y = this.position.y;
+        
+        // --- 1. Обновление power-ups ---
+        this.powerUpManager.update(scaledDeltaTime);
+        
+        // --- 2. Движущиеся платформы ---
         if (this.ridingPlatform && this.ridingPlatform.deltaMovement) {
              this.position.x += this.ridingPlatform.deltaMovement.x;
              this.position.y += this.ridingPlatform.deltaMovement.y;
         }
 
-        // --- 2. Ввод, Физика и Трение ---
+        // --- 3. Ввод и физика ---
         this.wasGrounded = this.isGrounded;
         this.handleInput(input);
+        
+        // Сброс специальных состояний
+        this.onIce = false;
+        this.onConveyor = false;
+        this.conveyorForce = 0;
 
         if (!this.inputState.left && !this.inputState.right) {
             this.velocity.x *= this.friction;
@@ -146,16 +229,45 @@ export class Player {
         }
 
         this.handleItemCollisions(keys, doors);
+        
+        // --- НОВЫЕ СИСТЕМЫ ВЗАИМОДЕЙСТВИЯ ---
+        
+        // Взаимодействие с кристаллами
+        if (crystals && crystals.length > 0) {
+            this.handleCrystalCollisions(crystals);
+        }
+        
+        // Взаимодействие с power-ups
+        if (powerUps && powerUps.length > 0) {
+            this.handlePowerUpCollisions(powerUps);
+        }
+        
+        // Взаимодействие со специальными блоками
+        if (level.specialBlocks && level.specialBlocks.length > 0) {
+            this.handleSpecialBlocksInteraction(level.specialBlocks);
+        }
+        
+        // Проверка секретных областей
+        if (level.secretAreas && level.secretAreas.length > 0) {
+            level.checkSecretAreas(this);
+        }
+        
+        // Применяем модификаторы скорости от power-ups
+        this.applySpeedModifications();
+        
         const enemyCollision = this.handleEnemyCollisions(enemies);
-        if (enemyCollision.gameOver) {
+        if (enemyCollision.gameOver && !this.isInvulnerable) {
             return { gameOver: true, levelComplete: false };
         }
 
-        // --- 7. Анимация ---
+        // --- 7. Визуальные эффекты ---
+        this.updateVisualEffects(scaledDeltaTime);
+        
+        // --- 8. Анимация ---
         this.updateAnimationState();
         this.sprite.update(rawDeltaTime);
         
-        // --- 8. Звук шагов ---
+        // --- 9. Звук шагов ---
         this.updateFootstepSound(rawDeltaTime);
 
         return { gameOver: false, levelComplete: false };
@@ -424,6 +536,365 @@ export class Player {
             this.sprite.draw(context, drawX, drawY);
         }
         context.restore();
+    }
+    
+    // === НОВЫЕ МЕТОДЫ ВЗАИМОДЕЙСТВИЯ ===
+    
+    /**
+     * Взаимодействие с кристаллами
+     */
+    handleCrystalCollisions(crystals) {
+        const playerBounds = {
+            x: this.position.x,
+            y: this.position.y,
+            width: this.width,
+            height: this.height
+        };
+        
+        for (const crystal of crystals) {
+            if (crystal.tryCollect(playerBounds)) {
+                this.crystalsCollected++;
+                this.totalScore += crystal.value;
+                
+                // Уведомляем систему целей
+                if (window.gameInstance && window.gameInstance.objectiveSystem) {
+                    window.gameInstance.objectiveSystem.onCrystalCollected();
+                }
+                
+                // Звуковой эффект
+                if (this.audioManager) {
+                    const soundName = crystal.type === 'legendary' ? 'crystal_legendary' : 
+                                     crystal.type === 'rare' ? 'crystal_rare' : 'crystal_collect';
+                    this.audioManager.playSound(soundName);
+                }
+            }
+        }
+    }
+    
+    /**
+     * Взаимодействие с power-ups
+     */
+    handlePowerUpCollisions(powerUps) {
+        for (const powerUp of powerUps) {
+            if (powerUp.tryCollect(this)) {
+                // Power-up сам применяет эффект через powerUpManager
+                // Здесь можем добавить дополнительную логику если нужно
+            }
+        }
+    }
+    
+    /**
+     * Взаимодействие со специальными блоками
+     */
+    handleSpecialBlocksInteraction(specialBlocks) {
+        const currentTime = performance.now();
+        
+        for (const block of specialBlocks) {
+            const collision = block.checkCollision({
+                x: this.position.x,
+                y: this.position.y,
+                width: this.width,
+                height: this.height
+            });
+            
+            if (collision) {
+                switch (block.type) {
+                    case 'spring':
+                        if (currentTime - this.lastSpringBounce > this.springCooldown) {
+                            if (block.interact(this)) {
+                                this.lastSpringBounce = currentTime;
+                                this.emitJumpParticles(); // Дополнительные эффекты
+                            }
+                        }
+                        break;
+                        
+                    case 'ice':
+                        block.interact(this);
+                        break;
+                        
+                    case 'conveyor':
+                        block.interact(this);
+                        this.onConveyor = true;
+                        this.conveyorForce = block.speed * block.direction;
+                        break;
+                        
+                    case 'switch':
+                        block.interact(this);
+                        break;
+                        
+                    case 'teleport':
+                        if (currentTime - this.lastTeleportTime > this.teleportCooldown) {
+                            if (block.interact(this)) {
+                                this.lastTeleportTime = currentTime;
+                                // Эффекты телепортации добавляются в самом блоке
+                            }
+                        }
+                        break;
+                }
+            }
+        }
+    }
+    
+    /**
+     * Применение модификаторов скорости
+     */
+    applySpeedModifications() {
+        // Модификации от power-ups уже применены через powerUpManager
+        
+        // Применяем ледяную физику
+        if (this.onIce) {
+            this.friction = this.iceFriction;
+        } else {
+            this.friction = 0.85; // Восстанавливаем обычное трение
+        }
+        
+        // Применяем силу конвейера
+        if (this.onConveyor) {
+            this.velocity.x += this.conveyorForce * (1/60); // Приблизительный deltaTime
+        }
+    }
+    
+    /**
+     * Обновление визуальных эффектов
+     */
+    updateVisualEffects(deltaTime) {
+        // Обновляем мерцание неуязвимости
+        if (this.isInvulnerable) {
+            this.invulnerabilityFlicker += deltaTime;
+        }
+        
+        // Следы движения при высокой скорости
+        const speed = Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.y * this.velocity.y);
+        
+        if (speed > this.speedEffectThreshold && this.isGrounded) {
+            this.trailTimer += deltaTime;
+            
+            if (this.trailTimer >= this.trailInterval) {
+                this.trailTimer = 0;
+                this.emitMovementTrail();
+            }
+        }
+        
+        // Магнетизм для кристаллов
+        if (this.hasMagnetism && this.magnetRange > 0) {
+            this.updateCrystalMagnetism();
+        }
+    }
+    
+    /**
+     * Эффект следов движения
+     */
+    emitMovementTrail() {
+        if (!this.particleSystem) return;
+        
+        // Определяем цвет следа в зависимости от активных power-ups
+        let trailColor = '#64b5f6'; // Стандартный синий
+        
+        if (this.powerUpManager.hasEffect('speed')) {
+            trailColor = '#ff5722'; // Красный для скорости
+        } else if (this.powerUpManager.hasEffect('jump')) {
+            trailColor = '#4caf50'; // Зеленый для прыжков
+        }
+        
+        this.particleSystem.emitTrail(
+            this.position.x + this.width / 2,
+            this.position.y + this.height,
+            this.previousPosition.x + this.width / 2,
+            this.previousPosition.y + this.height,
+            {
+                color: trailColor,
+                count: 2,
+                lifetime: 300,
+                size: 3
+            }
+        );
+    }
+    
+    /**
+     * Обновление магнетизма кристаллов
+     */
+    updateCrystalMagnetism() {
+        // Эта логика будет обрабатываться самими кристаллами
+        // через их метод update с передачей позиции игрока
+        // Здесь можем добавить визуальные эффекты магнетизма
+        
+        if (this.particleSystem && Math.random() < 0.3) {
+            this.particleSystem.emit({
+                x: this.position.x + this.width / 2 + (Math.random() - 0.5) * this.magnetRange,
+                y: this.position.y + this.height / 2 + (Math.random() - 0.5) * this.magnetRange,
+                velocityX: (Math.random() - 0.5) * 20,
+                velocityY: (Math.random() - 0.5) * 20,
+                life: 200,
+                color: '#ffeb3b',
+                size: 1,
+                fadeOut: true,
+                gravity: false
+            });
+        }
+    }
+    
+    /**
+     * Улучшенный метод обработки столкновений с врагами (с учетом неуязвимости)
+     */
+    handleEnemyCollisions(enemies) {
+        if (this.isInvulnerable) {
+            return { gameOver: false }; // Неуязвимость защищает от врагов
+        }
+        
+        const playerBox = { x: this.position.x, y: this.position.y, width: this.width, height: this.height };
+        for (const enemy of enemies) {
+            if (!enemy.isActive) continue;
+
+            const enemyBox = { x: enemy.position.x, y: enemy.position.y, width: enemy.width, height: enemy.height };
+
+            if (checkAABBCollision(playerBox, enemyBox)) {
+                const isStomping = this.velocity.y > 0 && (this.position.y + this.height) < (enemy.position.y + enemy.height * 0.5);
+                if (isStomping) {
+                    enemy.isActive = false;
+                    this.velocity.y = -this.jumpForce * 0.6;
+                    if (this.audioManager) this.audioManager.playSound('enemy_stomp', this.timeManager.timeScale);
+                    
+                    // Эффекты уничтожения врага
+                    this.particleSystem.emitPreset('explosion', 
+                        enemy.position.x + enemy.width / 2,
+                        enemy.position.y + enemy.height / 2
+                    );
+                } else {
+                    // Уведомляем систему целей о смерти
+                    if (window.gameInstance && window.gameInstance.objectiveSystem) {
+                        window.gameInstance.objectiveSystem.onPlayerDeath();
+                    }
+                    return { gameOver: true };
+                }
+            }
+        }
+        return { gameOver: false };
+    }
+    
+    /**
+     * Переопределенный метод прыжка с учетом power-ups
+     */
+    jump() {
+        const canJump = this.isGrounded || this.jumps < this.maxJumps;
+        if (!canJump) return;
+
+        const jumpForce = this.jumpForce * this.jumpMultiplier; // Применяем модификатор
+        this.velocity.y = -jumpForce;
+        this.isGrounded = false;
+        this.jumps++;
+        this.isJumping = true;
+
+        this.emitJumpParticles();
+        if (this.audioManager) this.audioManager.playSound('jump', this.timeManager.timeScale);
+    }
+    
+    /**
+     * Улучшенная обработка ввода с учетом модификаторов
+     */
+    handleInput(input) {
+        this.inputState.left = input.keys.has('ArrowLeft') || input.keys.has('KeyA');
+        this.inputState.right = input.keys.has('ArrowRight') || input.keys.has('KeyD');
+        this.inputState.jump = input.keys.has('Space') || input.keys.has('ArrowUp') || input.keys.has('KeyW');
+
+        const moveForce = this.moveSpeed * this.speedMultiplier; // Применяем модификатор скорости
+
+        if (this.inputState.left) {
+            this.velocity.x -= moveForce * (1/60);
+            this.facingDirection = -1;
+        }
+        if (this.inputState.right) {
+            this.velocity.x += moveForce * (1/60);
+            this.facingDirection = 1;
+        }
+
+        if (this.inputState.jump && !this.isJumping) {
+            this.jump();
+        }
+
+        if (!this.inputState.jump) {
+            this.isJumping = false;
+        }
+    }
+    
+    /**
+     * Метод отрисовки с учетом эффектов
+     */
+    draw(context) {
+        // Округляем для отрисовки, чтобы избежать размытия пиксель-арта, но сохраняем плавность движения.
+        const drawX = Math.floor(this.position.x);
+        const drawY = Math.floor(this.position.y + this.yOffset);
+
+        context.save();
+        
+        // Эффект мерцания при неуязвимости
+        if (this.isInvulnerable) {
+            const flickerAlpha = Math.sin(this.invulnerabilityFlicker / 100) * 0.5 + 0.5;
+            context.globalAlpha = 0.3 + flickerAlpha * 0.7;
+        }
+        
+        // Эффект свечения от power-ups
+        if (this.powerUpManager.hasEffect('speed')) {
+            context.shadowColor = '#ff5722';
+            context.shadowBlur = 10;
+        } else if (this.powerUpManager.hasEffect('jump')) {
+            context.shadowColor = '#4caf50';
+            context.shadowBlur = 8;
+        } else if (this.powerUpManager.hasEffect('invulnerability')) {
+            context.shadowColor = '#9c27b0';
+            context.shadowBlur = 12;
+        }
+        
+        if (this.facingDirection === -1) {
+            context.scale(-1, 1);
+            this.sprite.draw(context, -drawX - this.width, drawY);
+        } else {
+            this.sprite.draw(context, drawX, drawY);
+        }
+        context.restore();
+    }
+    
+    /**
+     * Получение статистики игрока
+     */
+    getStats() {
+        return {
+            crystalsCollected: this.crystalsCollected,
+            totalScore: this.totalScore,
+            activePowerUps: this.powerUpManager.getAllEffects(),
+            position: { x: this.position.x, y: this.position.y },
+            isGrounded: this.isGrounded,
+            hasKey: this.hasKey
+        };
+    }
+    
+    /**
+     * Сброс состояния игрока (для рестарта уровня)
+     */
+    reset(x, y) {
+        this.position.x = x;
+        this.position.y = y;
+        this.velocity.x = 0;
+        this.velocity.y = 0;
+        
+        this.isGrounded = false;
+        this.hasKey = false;
+        this.jumps = 0;
+        this.crystalsCollected = 0;
+        
+        // Очищаем все power-ups
+        this.powerUpManager.clear();
+        
+        // Сбрасываем модификаторы
+        this.speedMultiplier = 1.0;
+        this.jumpMultiplier = 1.0;
+        this.isInvulnerable = false;
+        this.magnetRange = 0;
+        this.hasMagnetism = false;
+        
+        // Сбрасываем специальные состояния
+        this.onIce = false;
+        this.onConveyor = false;
+        this.invulnerabilityFlicker = 0;
     }
 
 }

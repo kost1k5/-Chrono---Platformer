@@ -6,10 +6,11 @@ export class UI {
         this.isTouchDevice = 'ontouchstart' in window;
 
         this.menuButtons = {
-            // ИСПРАВЛЕНО: Вызов нового метода startNewGame()
-            startGame: { x: this.game.width / 2 - 100, y: this.game.height / 2 - 30, width: 200, height: 50, text: 'Начать игру', action: () => this.game.startNewGame() },
-            levelEditor: { x: this.game.width / 2 - 100, y: this.game.height / 2 + 30, width: 200, height: 50, text: '🎮 Редактор v2.0', action: () => this.openLevelEditor() },
-            settings: { x: this.game.width / 2 - 100, y: this.game.height / 2 + 90, width: 200, height: 50, text: 'Настройки', action: () => { this.game.gameState = 'settings'; } }
+            levelSelect: { x: this.game.width / 2 - 100, y: this.game.height / 2 - 50, width: 200, height: 40, text: '🎯 Выбрать уровень', action: () => { this.game.gameState = 'levelSelect'; } },
+            quickStart: { x: this.game.width / 2 - 100, y: this.game.height / 2 - 5, width: 200, height: 40, text: '⚡ Быстрый старт', action: () => this.game.startNewGame() },
+            levelEditor: { x: this.game.width / 2 - 100, y: this.game.height / 2 + 40, width: 200, height: 40, text: '🎮 Редактор v2.0', action: () => this.openLevelEditor() },
+            saveProgress: { x: this.game.width / 2 - 100, y: this.game.height / 2 + 85, width: 200, height: 40, text: '💾 Сохранить прогресс', action: () => this.saveProgress() },
+            settings: { x: this.game.width / 2 - 100, y: this.game.height / 2 + 130, width: 200, height: 40, text: 'Настройки', action: () => { this.game.gameState = 'settings'; } }
         };
 
         this.settingsElements = {
@@ -22,6 +23,28 @@ export class UI {
             right: { x: 150, y: this.game.height - 90, width: 80, height: 80, key: 'ArrowRight' },
             slow: { x: this.game.width - 230, y: this.game.height - 90, width: 80, height: 80, key: 'ShiftLeft' },
             jump: { x: this.game.width - 130, y: this.game.height - 90, width: 80, height: 80, key: 'Space' }
+        };
+
+        // Настройки экрана выбора уровней
+        this.levelSelectConfig = {
+            levelsPerRow: 6,
+            levelCardWidth: 120,
+            levelCardHeight: 80,
+            cardSpacing: 20,
+            startX: 100,
+            startY: 120,
+            scrollOffset: 0
+        };
+
+        this.levelSelectButtons = {
+            back: { x: 50, y: 50, width: 100, height: 40, text: '⬅ Назад', action: () => { this.game.gameState = 'mainMenu'; } }
+        };
+
+        // Кнопки меню паузы
+        this.pauseButtons = {
+            resume: { x: this.game.width / 2 - 100, y: this.game.height / 2 + 20, width: 200, height: 40, text: 'Продолжить', action: () => { this.game.gameState = 'playing'; } },
+            levelSelect: { x: this.game.width / 2 - 100, y: this.game.height / 2 + 70, width: 200, height: 40, text: 'Выбор уровня', action: () => { this.game.gameState = 'levelSelect'; } },
+            mainMenu: { x: this.game.width / 2 - 100, y: this.game.height / 2 + 120, width: 200, height: 40, text: 'Главное меню', action: () => { this.game.gameState = 'mainMenu'; } }
         };
     }
 
@@ -38,6 +61,28 @@ export class UI {
                     this.game.audioManager.init(); // Unlock audio on first user interaction
                     button.action();
                     return; // Exit after one action
+                }
+            }
+        } else if (this.game.gameState === 'levelSelect') {
+            // Check level select buttons
+            for (const key in this.levelSelectButtons) {
+                const button = this.levelSelectButtons[key];
+                if (x >= button.x && x <= button.x + button.width && y >= button.y && y <= button.y + button.height) {
+                    console.log(`🖱️ Level select button clicked: ${key}`);
+                    button.action();
+                    return;
+                }
+            }
+
+            // Check level cards
+            this.handleLevelCardClick(x, y);
+        } else if (this.game.gameState === 'paused') {
+            // Check pause menu buttons
+            for (const key in this.pauseButtons) {
+                const button = this.pauseButtons[key];
+                if (x >= button.x && x <= button.x + button.width && y >= button.y && y <= button.y + button.height) {
+                    button.action();
+                    return;
                 }
             }
         } else if (this.game.gameState === 'settings') {
@@ -65,6 +110,8 @@ export class UI {
 
         if (this.game.gameState === 'mainMenu') {
             this.drawMainMenu(context);
+        } else if (this.game.gameState === 'levelSelect') {
+            this.drawLevelSelect(context);
         } else if (this.game.gameState === 'settings') {
             this.drawSettingsMenu(context);
         } else if (this.game.gameState === 'paused') {
@@ -132,7 +179,28 @@ export class UI {
         context.textAlign = 'center';
         context.fillText('Хроно-Платформер', this.game.width / 2, this.game.height / 2 - 100);
 
+        // Отображение прогресса игрока
+        if (this.game.playerProgress) {
+            context.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            context.font = `16px ${this.fontFamily}`;
+            context.textAlign = 'left';
+            
+            const progressX = 20;
+            const progressY = 50;
+            
+            context.fillText(`Игрок: ${this.game.cloudSaveManager?.userId || 'Локальный'}`, progressX, progressY);
+            context.fillText(`Открыто уровней: ${this.game.playerProgress.unlockedLevels?.length || 0}`, progressX, progressY + 20);
+            context.fillText(`Пройдено уровней: ${this.game.playerProgress.completedLevels?.length || 0}`, progressX, progressY + 40);
+            context.fillText(`Лучший счет: ${this.game.playerProgress.totalScore || 0}`, progressX, progressY + 60);
+            
+            if (this.game.playerProgress.statistics) {
+                context.fillText(`Прыжков: ${this.game.playerProgress.statistics.totalJumps || 0}`, progressX, progressY + 80);
+                context.fillText(`Кристаллов: ${this.game.playerProgress.statistics.crystalsCollected || 0}`, progressX, progressY + 100);
+            }
+        }
+
         context.font = `20px ${this.fontFamily}`;
+        context.textAlign = 'center';
         for (const key in this.menuButtons) {
             const button = this.menuButtons[key];
             this.drawButton(context, button);
@@ -143,6 +211,187 @@ export class UI {
         context.font = `18px ${this.fontFamily}`;
         context.textAlign = 'center';
         context.fillText('Управление: ← → (движение), Пробел (прыжок), Shift (время), M (звук)', this.game.width / 2, this.game.height - 50);
+    }
+
+    drawLevelSelect(context) {
+        context.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        context.fillRect(0, 0, this.game.width, this.game.height);
+
+        // Заголовок
+        context.fillStyle = 'white';
+        context.font = `36px ${this.fontFamily}`;
+        context.textAlign = 'center';
+        context.fillText('Выбор уровня', this.game.width / 2, 60);
+
+        // Кнопка "Назад"
+        this.drawButton(context, this.levelSelectButtons.back);
+
+        // Информация о прогрессе
+        if (this.game.playerProgress) {
+            context.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            context.font = `16px ${this.fontFamily}`;
+            context.textAlign = 'right';
+            context.fillText(`Открыто: ${this.game.playerProgress.unlockedLevels?.length || 0} | Пройдено: ${this.game.playerProgress.completedLevels?.length || 0}`, this.game.width - 50, 70);
+        }
+
+        // Отрисовка карточек уровней
+        this.drawLevelCards(context);
+
+        // Инструкции по управлению
+        context.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        context.font = `14px ${this.fontFamily}`;
+        context.textAlign = 'center';
+        context.fillText('Используйте колесо мыши или стрелки ↑↓ для прокрутки. Escape - назад.', this.game.width / 2, this.game.height - 30);
+    }
+
+    drawLevelCards(context) {
+        if (!this.game.levelsList) {
+            // Отладочная информация если список уровней не загружен
+            context.fillStyle = 'white';
+            context.font = `20px ${this.fontFamily}`;
+            context.textAlign = 'center';
+            context.fillText('Загрузка списка уровней...', this.game.width / 2, this.game.height / 2);
+            console.warn('⚠️ levelsList not loaded in drawLevelCards');
+            return;
+        }
+
+        const config = this.levelSelectConfig;
+        const totalLevels = this.game.levelsList.length;
+
+        if (totalLevels === 0) {
+            context.fillStyle = 'white';
+            context.font = `20px ${this.fontFamily}`;
+            context.textAlign = 'center';
+            context.fillText('Нет доступных уровней', this.game.width / 2, this.game.height / 2);
+            return;
+        }
+
+        for (let i = 0; i < totalLevels; i++) {
+            const levelInfo = this.game.levelsList[i];
+            const isUnlocked = this.game.isLevelUnlocked(i);
+            const isCompleted = this.game.playerProgress?.completedLevels?.includes(i) || false;
+            const isCurrent = this.game.currentLevelIndex === i;
+            const bestTime = this.game.playerProgress?.bestTimes?.[i];
+
+            // Вычисляем позицию карточки
+            const row = Math.floor(i / config.levelsPerRow);
+            const col = i % config.levelsPerRow;
+            
+            const x = config.startX + col * (config.levelCardWidth + config.cardSpacing);
+            const y = config.startY + row * (config.levelCardHeight + config.cardSpacing) - config.scrollOffset;
+
+            // Пропускаем карточки, которые не видны
+            if (y + config.levelCardHeight < 0 || y > this.game.height) continue;
+
+            this.drawLevelCard(context, i, x, y, isUnlocked, isCompleted, isCurrent, bestTime, levelInfo);
+        }
+    }
+
+    drawLevelCard(context, levelIndex, x, y, isUnlocked, isCompleted, isCurrent, bestTime, levelInfo) {
+        const config = this.levelSelectConfig;
+        
+        // Фон карточки
+        if (isUnlocked) {
+            if (isCurrent) {
+                context.fillStyle = 'rgba(255, 193, 7, 0.8)'; // Желтый для текущего уровня
+            } else if (isCompleted) {
+                context.fillStyle = 'rgba(76, 175, 80, 0.8)'; // Зеленый для пройденных
+            } else {
+                context.fillStyle = 'rgba(33, 150, 243, 0.8)'; // Синий для доступных
+            }
+        } else {
+            context.fillStyle = 'rgba(100, 100, 100, 0.6)'; // Серый для заблокированных
+        }
+        
+        context.fillRect(x, y, config.levelCardWidth, config.levelCardHeight);
+
+        // Рамка (толще для текущего уровня)
+        context.strokeStyle = isUnlocked ? 'white' : 'rgba(255, 255, 255, 0.3)';
+        context.lineWidth = isCurrent ? 4 : 2;
+        context.strokeRect(x, y, config.levelCardWidth, config.levelCardHeight);
+
+        // Номер уровня
+        context.fillStyle = isUnlocked ? 'white' : 'rgba(255, 255, 255, 0.5)';
+        context.font = `24px ${this.fontFamily}`;
+        context.textAlign = 'center';
+        context.fillText(`${levelIndex + 1}`, x + config.levelCardWidth / 2, y + 30);
+
+        // Название уровня (если есть)
+        if (levelInfo && levelInfo.name) {
+            context.font = `12px ${this.fontFamily}`;
+            context.fillText(levelInfo.name.substring(0, 12), x + config.levelCardWidth / 2, y + 45);
+        } else {
+            // Показываем номер уровня как название
+            context.font = `12px ${this.fontFamily}`;
+            context.fillText(`Уровень ${levelIndex + 1}`, x + config.levelCardWidth / 2, y + 45);
+        }
+
+        // Статус прохождения
+        if (isUnlocked) {
+            context.font = `10px ${this.fontFamily}`;
+            if (isCompleted) {
+                context.fillStyle = 'rgba(255, 255, 255, 0.9)';
+                context.fillText('✓ ПРОЙДЕН', x + config.levelCardWidth / 2, y + 60);
+                
+                // Лучшее время
+                if (bestTime) {
+                    const timeStr = this.formatTime(bestTime);
+                    context.fillText(timeStr, x + config.levelCardWidth / 2, y + 72);
+                }
+            } else {
+                context.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                context.fillText('ДОСТУПЕН', x + config.levelCardWidth / 2, y + 60);
+            }
+        } else {
+            context.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            context.font = `12px ${this.fontFamily}`;
+            context.fillText('🔒', x + config.levelCardWidth / 2, y + 60);
+        }
+    }
+
+    handleLevelCardClick(x, y) {
+        if (!this.game.levelsList) return;
+
+        const config = this.levelSelectConfig;
+        const totalLevels = this.game.levelsList.length;
+
+        for (let i = 0; i < totalLevels; i++) {
+            const row = Math.floor(i / config.levelsPerRow);
+            const col = i % config.levelsPerRow;
+            
+            const cardX = config.startX + col * (config.levelCardWidth + config.cardSpacing);
+            const cardY = config.startY + row * (config.levelCardHeight + config.cardSpacing) - config.scrollOffset;
+
+            // Проверяем клик по карточке
+            if (x >= cardX && x <= cardX + config.levelCardWidth && 
+                y >= cardY && y <= cardY + config.levelCardHeight) {
+                
+                const isUnlocked = this.game.isLevelUnlocked(i);
+                if (isUnlocked) {
+                    // Запускаем выбранный уровень
+                    this.game.currentLevelIndex = i;
+                    this.game.loadLevel(i);
+                    return;
+                } else {
+                    // Показываем уведомление о заблокированном уровне
+                    this.showNotification('Уровень заблокирован! Пройдите предыдущие уровни.', 'error');
+                }
+            }
+        }
+    }
+
+    formatTime(timestamp) {
+        // Преобразуем timestamp в читаемый формат времени
+        if (typeof timestamp === 'number' && timestamp > 1000000000000) {
+            // Это timestamp, преобразуем в время с начала
+            return 'Рекорд';
+        } else {
+            // Это время в миллисекундах
+            const minutes = Math.floor(timestamp / 60000);
+            const seconds = Math.floor((timestamp % 60000) / 1000);
+            const ms = Math.floor((timestamp % 1000) / 10);
+            return `${minutes}:${seconds.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`;
+        }
     }
 
     drawSettingsMenu(context) {
@@ -168,12 +417,24 @@ export class UI {
     }
 
     drawPauseMenu(context) {
-        context.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        context.fillStyle = 'rgba(0, 0, 0, 0.7)';
         context.fillRect(0, 0, this.game.width, this.game.height);
+        
         context.font = `50px ${this.fontFamily}`;
         context.fillStyle = 'white';
         context.textAlign = 'center';
-        context.fillText('Пауза', this.game.width / 2, this.game.height / 2);
+        context.fillText('Пауза', this.game.width / 2, this.game.height / 2 - 50);
+
+        // Отрисовываем кнопки паузы
+        for (const key in this.pauseButtons) {
+            const button = this.pauseButtons[key];
+            this.drawButton(context, button);
+        }
+
+        // Инструкция
+        context.fillStyle = 'rgba(255, 255, 255, 0.7)';
+        context.font = `16px ${this.fontFamily}`;
+        context.fillText('Нажмите Escape для продолжения', this.game.width / 2, this.game.height / 2 + 180);
     }
 
     drawButton(context, button) {
@@ -301,5 +562,75 @@ export class UI {
     openLevelEditor() {
         // Открываем улучшенный редактор уровней v2.0 в новом окне
         window.open('./level_editor.html', '_blank', 'width=1600,height=1000,menubar=no,toolbar=no,location=no,status=no,scrollbars=no,resizable=yes');
+    }
+
+    async saveProgress() {
+        try {
+            console.log('Manual save progress requested...');
+            const success = await this.game.saveProgress();
+            
+            // Показываем уведомление пользователю
+            if (success) {
+                this.showNotification('Прогресс сохранен!', 'success');
+            } else {
+                this.showNotification('Ошибка сохранения!', 'error');
+            }
+        } catch (error) {
+            console.error('Error in manual save:', error);
+            this.showNotification('Ошибка сохранения!', 'error');
+        }
+    }
+
+    showNotification(message, type = 'info') {
+        // Создаем временное уведомление
+        this.notification = {
+            message: message,
+            type: type,
+            timestamp: Date.now()
+        };
+        
+        // Убираем уведомление через 3 секунды
+        setTimeout(() => {
+            if (this.notification && Date.now() - this.notification.timestamp >= 3000) {
+                this.notification = null;
+            }
+        }, 3000);
+    }
+
+    drawNotification(context) {
+        if (!this.notification) return;
+        
+        const age = Date.now() - this.notification.timestamp;
+        if (age > 3000) {
+            this.notification = null;
+            return;
+        }
+        
+        // Анимация появления/исчезновения
+        let alpha = 1;
+        if (age < 300) {
+            alpha = age / 300;
+        } else if (age > 2700) {
+            alpha = (3000 - age) / 300;
+        }
+        
+        context.save();
+        context.globalAlpha = alpha;
+        
+        // Фон уведомления
+        const bgColor = this.notification.type === 'success' ? 'rgba(76, 175, 80, 0.9)' : 
+                       this.notification.type === 'error' ? 'rgba(244, 67, 54, 0.9)' : 
+                       'rgba(33, 150, 243, 0.9)';
+        
+        context.fillStyle = bgColor;
+        context.fillRect(this.game.width / 2 - 150, 50, 300, 50);
+        
+        // Текст уведомления
+        context.fillStyle = 'white';
+        context.font = '18px ' + this.fontFamily;
+        context.textAlign = 'center';
+        context.fillText(this.notification.message, this.game.width / 2, 80);
+        
+        context.restore();
     }
 }

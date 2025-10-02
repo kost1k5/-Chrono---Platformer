@@ -33,4 +33,12 @@ export class Camera {
         // Используем Math.round, чтобы избежать артефактов рендеринга (разрывов между тайлами).
         context.translate(-Math.round(this.position.x), -Math.round(this.position.y));
     }
+
+    // Преобразование мировых координат в экранные
+    worldToScreen(worldX, worldY) {
+        return {
+            x: worldX - this.position.x,
+            y: worldY - this.position.y
+        };
+    }
 }
