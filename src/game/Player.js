@@ -1,4 +1,3 @@
-// Filename: Player.js
 import { Vec2 } from '../utils/Vec2.js';
 import { checkAABBCollision } from '../utils/Collision.js';
 import { Sprite } from '../engine/Sprite.js';
@@ -20,7 +19,7 @@ export class Player {
      * @param {ParticleSystem} config.particleSystem - Система частиц
      * @param {PowerUpManager} config.powerUpManager - Менеджер power-ups
      */
-    constructor(x, y, { sprites, audioManager, timeManager, particleSystem, powerUpManager }) {
+    constructor(x, y, { sprites, audioManager, timeManager, particleSystem, powerUpManager, game }) {
         this.position = new Vec2(x, y);
         this.velocity = new Vec2(0, 0);
         this.previousPosition = new Vec2(x, y); // Для следов
@@ -28,6 +27,13 @@ export class Player {
         // Размеры персонажа (как было изначально)
         this.width = 45;  
         this.height = 50;
+
+        // Ссылки на менеджеры
+        this.audioManager = audioManager;
+        this.timeManager = timeManager;
+        this.particleSystem = particleSystem;
+        this.powerUpManager = powerUpManager || new PowerUpManager(this);
+        this.game = game;  // Ссылка на основной объект игры
 
         // Основная физика
         this.isGrounded = false;
@@ -42,12 +48,6 @@ export class Player {
         this.maxJumps = 2;
         this.isJumping = false;
         this.inputState = { left: false, right: false, jump: false };
-
-        // Менеджеры
-        this.audioManager = audioManager;
-        this.timeManager = timeManager;
-        this.particleSystem = particleSystem;
-        this.powerUpManager = powerUpManager || new PowerUpManager(this);
 
         // Физические параметры
         this.gravity = 980;
@@ -493,6 +493,11 @@ export class Player {
                     enemy.isActive = false;
                     this.velocity.y = -this.jumpForce * 0.6;
                     if (this.audioManager) this.audioManager.playSound('enemy_stomp', this.timeManager.timeScale);
+                    
+                    // Начисляем очки за убийство врага
+                    if (this.game && this.game.addScore) {
+                        this.game.addScore(20, 'убийство врага');
+                    }
                 } else {
                     return { gameOver: true };
                 }

@@ -1148,7 +1148,7 @@ class LevelEditor {
                 this.drawLevel();
                 this.updateUI();
                 this.saveState();
-                console.log('Уровень успешно загружен');
+
             } catch (error) {
                 alert('Ошибка при загрузке файла: ' + error.message);
             }
@@ -1172,18 +1172,18 @@ class LevelEditor {
     }
 
     async saveLevel() {
-        console.log('saveLevel() вызвана'); // Отладка
+
         
         // Для GitHub Pages всегда используем скачивание файла
         const levelName = await this.promptForLevelName();
-        console.log('Выбранное имя:', levelName); // Отладка
+
         
         if (!levelName) {
-            console.log('Пользователь отменил сохранение'); // Отладка
+
             return; // Пользователь отменил
         }
         
-        console.log('Начинаем скачивание файла:', levelName); // Отладка
+
         this.downloadLevelFile(levelName);
     }
     
@@ -1284,7 +1284,7 @@ class LevelEditor {
     }
     
     downloadLevelFile(levelName) {
-        console.log('downloadLevelFile() вызвана с именем:', levelName);
+
         
         try {
             // Проверяем данные уровня
@@ -1302,7 +1302,7 @@ class LevelEditor {
             
             // Функция для скачивания файла (GitHub Pages версия)
             const dataStr = JSON.stringify(this.level, null, 2);
-            console.log('Данные уровня подготовлены, размер:', dataStr.length);
+
             
             const filename = levelName.endsWith('.json') ? levelName : `${levelName}.json`;
             
@@ -1311,7 +1311,7 @@ class LevelEditor {
             const hasBlobSupport = typeof Blob !== 'undefined';
             const hasUrlSupport = typeof URL !== 'undefined' && URL.createObjectURL;
             
-            console.log('Поддержка браузера:', {
+
                 download: hasDownloadSupport,
                 blob: hasBlobSupport,
                 url: hasUrlSupport
@@ -1328,7 +1328,7 @@ class LevelEditor {
                 // IE/Edge legacy
                 const blob = new Blob([dataStr], { type: 'application/json;charset=utf-8' });
                 navigator.msSaveBlob(blob, filename);
-                console.log('Скачивание через IE/Edge API');
+
                 alert(`✅ Файл "${filename}" сохранён!`);
             } else if (hasDownloadSupport && hasUrlSupport) {
                 // Современные браузеры
@@ -1342,16 +1342,16 @@ class LevelEditor {
                 
                 // Важно: добавляем в DOM, кликаем, затем удаляем
                 document.body.appendChild(link);
-                console.log('Ссылка добавлена в DOM, инициируем клик...');
+
                 
                 // Пробуем разные методы клика
                 let clickWorked = false;
                 try {
                     link.click();
                     clickWorked = true;
-                    console.log('Стандартный клик выполнен');
+
                 } catch (e) {
-                    console.log('Стандартный клик не сработал, пробуем dispatchEvent');
+
                     try {
                         link.dispatchEvent(new MouseEvent('click', {
                             bubbles: true,
@@ -1359,9 +1359,9 @@ class LevelEditor {
                             view: window
                         }));
                         clickWorked = true;
-                        console.log('dispatchEvent клик выполнен');
+
                     } catch (e2) {
-                        console.log('dispatchEvent не сработал:', e2);
+
                     }
                 }
                 
@@ -1371,7 +1371,7 @@ class LevelEditor {
                         document.body.removeChild(link);
                     }
                     URL.revokeObjectURL(url);
-                    console.log('Ссылка удалена, URL освобождён');
+
                 }, 200);
                 
                 if (clickWorked) {
@@ -1387,32 +1387,32 @@ class LevelEditor {
                         alert(message);
                     }, 100);
                 } else {
-                    console.log('Все методы клика не сработали, пробуем fallback');
+
                     this.fallbackSave(dataStr, filename);
                 }
             } else {
-                console.log('Современные методы не поддерживаются, используем fallback');
+
                 this.fallbackSave(dataStr, filename);
             }
             
             // Логируем данные в консоль для ручного сохранения
-            console.log('=== ДАННЫЕ ДЛЯ РУЧНОГО СОХРАНЕНИЯ ===');
-            console.log('Имя файла:', filename);
-            console.log('Содержимое файла:');
-            console.log(dataStr);
-            console.log('=== КОНЕЦ ДАННЫХ ===');
+
+
+
+
+
             
         } catch (error) {
             console.error('Ошибка при скачивании:', error);
             alert('❌ Ошибка при скачивании файла: ' + error.message + '\n\nДанные выведены в консоль (нажмите F12).');
             // В случае ошибки также выводим данные в консоль
-            console.log('ДАННЫЕ ДЛЯ РУЧНОГО СОХРАНЕНИЯ:', JSON.stringify(this.level, null, 2));
+
         }
     }
     
     // Резервный метод сохранения
     fallbackSave(dataStr, filename) {
-        console.log('Используем резервный метод сохранения');
+
         
         // Пытаемся открыть данные в новом окне
         try {
@@ -1425,7 +1425,7 @@ class LevelEditor {
                 throw new Error('Не удалось открыть новое окно');
             }
         } catch (e) {
-            console.log('Новое окно не открылось, показываем prompt');
+
             // Последний резерв - показать данные в prompt
             const shouldShowData = confirm(
                 `⚠️ Автоматическое скачивание не поддерживается.\n\n` +

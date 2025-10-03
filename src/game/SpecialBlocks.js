@@ -1,4 +1,3 @@
-// Filename: SpecialBlocks.js
 import { Vec2 } from '../utils/Vec2.js';
 import { checkAABBCollision } from '../utils/Collision.js';
 

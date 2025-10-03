@@ -1,4 +1,3 @@
-import { Logger } from '../utils/Logger.js';
 import { SpringBlock, IceBlock, ConveyorBlock, SwitchBlock, TeleportBlock } from './SpecialBlocks.js';
 import { SecretArea } from './GameObjectives.js';
 
@@ -66,12 +65,10 @@ export class Level {
         
         // Проверяем валидность tileData
         if (!Array.isArray(this.tileData)) {
-            console.warn('tileData is not an array, converting:', this.tileData);
             this.tileData = [];
         }
         
         if (this.tileData.length !== this.width * this.height) {
-            console.warn(`tileData length mismatch: expected ${this.width * this.height}, got ${this.tileData.length}`);
             // Дополняем нулями если данных недостаточно
             while (this.tileData.length < this.width * this.height) {
                 this.tileData.push(0);
@@ -119,8 +116,6 @@ export class Level {
         
         // Настраиваем переключатели и телепорты
         this.setupSwitchesAndTeleports();
-        
-        Logger.info(`Level built with ${this.tiles.length} tiles, ${this.specialBlocks.length} special blocks, ${this.secretAreas.length} secret areas`);
 
         // Улучшенные фоны для параллакса
         if (!this.backgroundLayers || this.backgroundLayers.length === 0) {
@@ -138,12 +133,10 @@ export class Level {
     buildBasicTiles() {
         // Проверяем валидность данных перед обработкой
         if (!this.tileData || !Array.isArray(this.tileData)) {
-            console.error('tileData is not defined or not an array:', this.tileData);
             return;
         }
         
         if (this.tileData.length !== this.width * this.height) {
-            console.error(`tileData length mismatch: expected ${this.width * this.height}, got ${this.tileData.length}`);
             return;
         }
 

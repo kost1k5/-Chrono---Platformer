@@ -1,4 +1,3 @@
-// Filename: GameObjectives.js
 
 /**
  * Система целей и достижений для уровней

@@ -30,8 +30,6 @@ export class Enemy {
                 }
             });
             this.sprite.setState('walk');
-        } else {
-            console.warn('Enemy spritesheet не загружен!');
         }
     }
 

@@ -1,4 +1,3 @@
-// Filename: utils/Collision.js
 // Функция для проверки столкновения двух осе-ориентированных прямоугольников (AABB)
 // rect1 и rect2 - это объекты с полями { x, y, width, height }
 export function checkAABBCollision(rect1, rect2) {

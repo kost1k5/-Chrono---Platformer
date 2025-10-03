@@ -101,7 +101,6 @@ export class JSONBinSaveManager {
 
             return await response.json();
         } catch (error) {
-            console.error('JSONBin API error:', error);
             throw error;
         }
     }
@@ -114,7 +113,6 @@ export class JSONBinSaveManager {
             const response = await this.apiRequest(this.USERS_BIN_ID);
             return response.record;
         } catch (error) {
-            console.error('Error loading users data:', error);
             // Возвращаем пустую структуру при ошибке
             return {
                 users: [],
@@ -140,7 +138,6 @@ export class JSONBinSaveManager {
             await this.apiRequest(this.USERS_BIN_ID, 'PUT', usersData);
             return true;
         } catch (error) {
-            console.error('Error saving users data:', error);
             return false;
         }
     }
@@ -217,13 +214,8 @@ export class JSONBinSaveManager {
             // Сохраняем обновленные данные
             const success = await this.saveUsersData(usersData);
             
-            if (success) {
-                console.log('Progress saved successfully');
-            }
-            
             return success;
         } catch (error) {
-            console.error('Error saving progress:', error);
             return false;
         }
     }
@@ -257,7 +249,6 @@ export class JSONBinSaveManager {
                 }
             };
         } catch (error) {
-            console.error('Error loading progress:', error);
             // Возвращаем дефолтные данные при ошибке
             return {
                 userId: this.userId,
@@ -290,7 +281,6 @@ export class JSONBinSaveManager {
             const response = await this.apiRequest(this.LEADERBOARD_BIN_ID);
             return response.record || [];
         } catch (error) {
-            console.error('Error loading leaderboard:', error);
             return [];
         }
     }
@@ -328,7 +318,6 @@ export class JSONBinSaveManager {
             await this.apiRequest(this.LEADERBOARD_BIN_ID, 'PUT', leaderboard);
             return true;
         } catch (error) {
-            console.error('Error saving leaderboard entry:', error);
             return false;
         }
     }

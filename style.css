@@ -1,28 +1,38 @@
 body {
     margin: 0;
+    padding: 0;
     overflow: hidden;
     background-color: #1a1a1a;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
+    width: 100vw;
+    touch-action: none; /* Предотвращает нежелательные жесты браузера */
+    user-select: none; /* Предотвращает выделение текста на мобильных */
 }
 
 canvas {
     background-color: #000;
-    display: block;
+    display: block; /* По умолчанию показываем canvas */
     position: relative;
     z-index: 1000;
+    touch-action: none; /* Отключаем встроенные жесты браузера */
 
-    /* Адаптивность */
-    width: 100%;
-    height: 100%;
-    max-width: 960px; /* Максимальная ширина игры */
-    object-fit: contain; /* Сохраняет пропорции */
+    /* Адаптивные размеры для мобильных устройств */
+    width: 100vw;
+    height: 100vh;
+    
+    /* Сохранить пропорции при масштабировании */
+    object-fit: contain;
+    
+    /* Для десктопа ограничиваем максимальные размеры */
+    max-width: 1280px;
+    max-height: 720px;
 }
 
 #rotate-device-message {
-    display: none;
+    display: none; /* По умолчанию скрываем сообщение */
     position: fixed;
     top: 0;
     left: 0;
@@ -31,18 +41,78 @@ canvas {
     background-color: #1a1a1a;
     color: white;
     font-family: '"Source Sans Pro", sans-serif';
-    font-size: 24px;
+    font-size: 20px;
     text-align: center;
-    padding-top: 45vh; /* Simple vertical centering */
-    z-index: 2000; /* Must be on top of the canvas */
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    z-index: 2000; 
 }
 
-@media (orientation: portrait) {
+#rotate-device-message::before {
+    content: "📱➡️🖥️";
+    font-size: 48px;
+    margin-bottom: 20px;
+}
+
+/* Медиа-запросы для различных устройств */
+@media (min-width: 1280px) {
+    canvas {
+        width: 1280px;
+        height: 720px;
+    }
+}
+
+@media (max-width: 1279px) and (orientation: landscape) {
+    canvas {
+        width: 100vw;
+        height: calc(100vw * 9 / 16); /* Сохраняем соотношение 16:9 */
+        max-height: 100vh;
+    }
+    
+    /* Если высота получается больше viewport, подгоняем по высоте */
+    @supports (height: 100dvh) {
+        canvas {
+            max-height: 100dvh;
+        }
+    }
+}
+
+/* Для очень маленьких экранов */
+@media (max-width: 480px) and (orientation: landscape) {
+    canvas {
+        width: 100vw;
+        height: 100vh;
+    }
+}
+
+/* Для планшетов в альбомной ориентации */
+@media (min-width: 481px) and (max-width: 1024px) and (orientation: landscape) {
+    canvas {
+        width: 100vw;
+        height: calc(100vw * 9 / 16);
+        max-height: 100vh;
+    }
+}
+
+/* Показываем игру в альбомной ориентации */
+@media (orientation: landscape) {
     #gameCanvas {
-        display: none;
+        display: block;
     }
 
     #rotate-device-message {
-        display: block;
+        display: none !important;
+    }
+}
+
+/* Скрываем игру и показываем сообщение в портретной ориентации */
+@media (orientation: portrait) {
+    #gameCanvas {
+        display: none !important;
+    }
+
+    #rotate-device-message {
+        display: flex !important;
     }
 }

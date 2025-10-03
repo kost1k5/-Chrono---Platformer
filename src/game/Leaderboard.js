@@ -16,7 +16,6 @@ export class Leaderboard {
 
     async fetchScores() {
         if (this.apiKey === 'YOUR_API_KEY' || this.binUrl === 'YOUR_BIN_URL') {
-            console.warn("Leaderboard: API ключ или URL не установлены. Возвращаю тестовые данные.");
             return [{ name: 'Player1', score: 1000 }, { name: 'Player2', score: 800 }];
         }
         try {
@@ -29,14 +28,12 @@ export class Leaderboard {
             // JSONBin возвращает данные в свойстве 'record'
             return Array.isArray(data.record) ? data.record : [];
         } catch (e) {
-            console.error("Не удалось загрузить таблицу лидеров:", e);
             return null;
         }
     }
 
     async submitScore(name, score) {
         if (this.apiKey === 'YOUR_API_KEY' || this.binUrl === 'YOUR_BIN_URL') {
-            console.warn("Leaderboard: API ключ или URL не установлены. Отправка отменена.");
             return;
         }
         try {
@@ -56,9 +53,8 @@ export class Leaderboard {
                 body: JSON.stringify(scores)
             });
             if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-            console.log("Рекорд успешно отправлен!");
         } catch (e) {
-            console.error("Не удалось отправить рекорд:", e);
+            // Обработка ошибки отправки рекорда
         }
     }
 }

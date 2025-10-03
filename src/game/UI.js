@@ -3,35 +3,35 @@ export class UI {
         this.game = game;
         this.fontSize = 24;
         this.fontFamily = '"Source Sans Pro", sans-serif';
-        this.isTouchDevice = 'ontouchstart' in window;
+        
+        // Улучшенное определение сенсорного устройства
+        this.isTouchDevice = 'ontouchstart' in window || 
+                            navigator.maxTouchPoints > 0 || 
+                            navigator.msMaxTouchPoints > 0;
 
-        this.menuButtons = {
-            levelSelect: { x: this.game.width / 2 - 100, y: this.game.height / 2 - 50, width: 200, height: 40, text: '🎯 Выбрать уровень', action: () => { this.game.gameState = 'levelSelect'; } },
-            quickStart: { x: this.game.width / 2 - 100, y: this.game.height / 2 - 5, width: 200, height: 40, text: '⚡ Быстрый старт', action: () => this.game.startNewGame() },
-            levelEditor: { x: this.game.width / 2 - 100, y: this.game.height / 2 + 40, width: 200, height: 40, text: '🎮 Редактор v2.0', action: () => this.openLevelEditor() },
-            saveProgress: { x: this.game.width / 2 - 100, y: this.game.height / 2 + 85, width: 200, height: 40, text: '💾 Сохранить прогресс', action: () => this.saveProgress() },
-            settings: { x: this.game.width / 2 - 100, y: this.game.height / 2 + 130, width: 200, height: 40, text: 'Настройки', action: () => { this.game.gameState = 'settings'; } }
-        };
-
+        // Простые кнопки с адаптивными координатами - будут обновляться динамически
+        this.menuButtons = {};
+        this.updateMenuButtons(); // Первоначальная инициализация
+        
         this.settingsElements = {
             volumeSlider: { x: this.game.width / 2 - 100, y: this.game.height / 2, width: 200, height: 20 },
             backButton: { x: this.game.width / 2 - 100, y: this.game.height / 2 + 70, width: 200, height: 50, text: 'Назад', action: () => { this.game.gameState = 'mainMenu'; } }
         };
 
         this.touchControls = {
-            left: { x: 50, y: this.game.height - 90, width: 80, height: 80, key: 'ArrowLeft' },
-            right: { x: 150, y: this.game.height - 90, width: 80, height: 80, key: 'ArrowRight' },
-            slow: { x: this.game.width - 230, y: this.game.height - 90, width: 80, height: 80, key: 'ShiftLeft' },
-            jump: { x: this.game.width - 130, y: this.game.height - 90, width: 80, height: 80, key: 'Space' }
+            left: { x: 30, y: this.game.height - 120, width: 100, height: 100, key: 'ArrowLeft' },
+            right: { x: 150, y: this.game.height - 120, width: 100, height: 100, key: 'ArrowRight' },
+            slow: { x: this.game.width - 260, y: this.game.height - 120, width: 100, height: 100, key: 'ShiftLeft' },
+            jump: { x: this.game.width - 140, y: this.game.height - 120, width: 100, height: 100, key: 'Space' }
         };
 
-        // Настройки экрана выбора уровней
+        // Настройки экрана выбора уровней (адаптивно)
         this.levelSelectConfig = {
-            levelsPerRow: 6,
-            levelCardWidth: 120,
-            levelCardHeight: 80,
+            levelsPerRow: this.isTouchDevice ? 6 : 8,  // Меньше уровней на мобильных
+            levelCardWidth: this.isTouchDevice ? 140 : 120,  // Больше карточки на мобильных
+            levelCardHeight: this.isTouchDevice ? 100 : 80,
             cardSpacing: 20,
-            startX: 100,
+            startX: this.isTouchDevice ? 80 : 140,
             startY: 120,
             scrollOffset: 0
         };
@@ -48,60 +48,150 @@ export class UI {
         };
     }
 
+    updateMenuButtons() {
+        // Пересчитываем координаты кнопок меню
+        const buttonWidth = this.isTouchDevice ? 250 : 200;  // Шире на мобильных
+        const buttonHeight = this.isTouchDevice ? 45 : 35;   // Выше на мобильных
+        const startY = this.isTouchDevice ? 280 : 300;       // Чуть выше на мобильных
+        const spacing = this.isTouchDevice ? 50 : 40;        // Больше отступ на мобильных
+        
+        this.menuButtons = {
+            levelSelect: { 
+                x: this.game.width / 2 - buttonWidth / 2, y: startY, 
+                width: buttonWidth, height: buttonHeight, 
+                text: '🎯 Выбрать уровень'
+            },
+            quickStart: { 
+                x: this.game.width / 2 - buttonWidth / 2, y: startY + spacing, 
+                width: buttonWidth, height: buttonHeight, 
+                text: '⚡ Быстрый старт'
+            },
+            levelEditor: { 
+                x: this.game.width / 2 - buttonWidth / 2, y: startY + spacing * 2, 
+                width: buttonWidth, height: buttonHeight, 
+                text: '🎮 Редактор v2.0'
+            },
+            saveProgress: { 
+                x: this.game.width / 2 - buttonWidth / 2, y: startY + spacing * 3, 
+                width: buttonWidth, height: buttonHeight, 
+                text: '💾 Сохранить прогресс'
+            },
+            settings: { 
+                x: this.game.width / 2 - buttonWidth / 2, y: startY + spacing * 4, 
+                width: buttonWidth, height: buttonHeight, 
+                text: '⚙️ Настройки'
+            }
+        };
+    }
+
+    // Преобразует внутренние координаты canvas в экранные координаты
+    canvasToScreenCoords(canvasX, canvasY) {
+        const canvas = document.getElementById('gameCanvas');
+        const rect = canvas.getBoundingClientRect();
+        
+        // Простое линейное преобразование
+        const screenX = (canvasX / this.game.width) * rect.width;
+        const screenY = (canvasY / this.game.height) * rect.height;
+        
+        return { x: screenX, y: screenY };
+    }
+
+    // Преобразует экранные координаты в координаты canvas
+    screenToCanvasCoords(screenX, screenY) {
+        const canvas = document.getElementById('gameCanvas');
+        const rect = canvas.getBoundingClientRect();
+        
+        // Простое обратное преобразование
+        const canvasX = (screenX / rect.width) * this.game.width;
+        const canvasY = (screenY / rect.height) * this.game.height;
+        
+        return { x: canvasX, y: canvasY };
+    }
+
     isReady() {
         return true;
     }
 
     handleMouseClick(x, y) {
+        // x, y - это экранные координаты касания, преобразуем их в координаты canvas
+        const canvasCoords = this.screenToCanvasCoords(x, y);
+        const canvasX = canvasCoords.x;
+        const canvasY = canvasCoords.y;
+        
         if (this.game.gameState === 'mainMenu') {
-            // Check main menu buttons
+            // Теперь сравниваем с координатами кнопок в canvas
             for (const key in this.menuButtons) {
                 const button = this.menuButtons[key];
-                if (x >= button.x && x <= button.x + button.width && y >= button.y && y <= button.y + button.height) {
-                    this.game.audioManager.init(); // Unlock audio on first user interaction
-                    button.action();
-                    return; // Exit after one action
-                }
-            }
-        } else if (this.game.gameState === 'levelSelect') {
-            // Check level select buttons
-            for (const key in this.levelSelectButtons) {
-                const button = this.levelSelectButtons[key];
-                if (x >= button.x && x <= button.x + button.width && y >= button.y && y <= button.y + button.height) {
-                    console.log(`🖱️ Level select button clicked: ${key}`);
-                    button.action();
+                
+                if (canvasX >= button.x && canvasX <= button.x + button.width && 
+                    canvasY >= button.y && canvasY <= button.y + button.height) {
+                    
+                    switch(key) {
+                        case 'levelSelect':
+                            this.game.gameState = 'levelSelect';
+                            break;
+                        case 'quickStart':
+                            this.game.startNewGame();
+                            break;
+                        case 'levelEditor':
+                            window.open('./level_editor.html', '_blank');
+                            break;
+                        case 'saveProgress':
+                            this.saveProgressAction();
+                            break;
+                        case 'settings':
+                            this.game.gameState = 'settings';
+                            break;
+                    }
                     return;
                 }
             }
+        } else if (this.game.gameState === 'levelSelect') {
+            // Кнопка "Назад" в выборе уровней - используем координаты canvas
+            if (canvasX >= 50 && canvasX <= 150 && canvasY >= 50 && canvasY <= 90) {
+                this.game.gameState = 'mainMenu';
+                return;
+            }
 
-            // Check level cards
-            this.handleLevelCardClick(x, y);
+            this.handleLevelCardClick(canvasX, canvasY);
         } else if (this.game.gameState === 'paused') {
-            // Check pause menu buttons
+           
             for (const key in this.pauseButtons) {
                 const button = this.pauseButtons[key];
-                if (x >= button.x && x <= button.x + button.width && y >= button.y && y <= button.y + button.height) {
+                if (canvasX >= button.x && canvasX <= button.x + button.width && canvasY >= button.y && canvasY <= button.y + button.height) {
                     button.action();
                     return;
                 }
             }
         } else if (this.game.gameState === 'settings') {
-            // Check settings screen elements
-            const backButton = this.settingsElements.backButton;
-            if (x >= backButton.x && x <= backButton.x + backButton.width && y >= backButton.y && y <= backButton.y + backButton.height) {
-                backButton.action();
-                return; // Exit
+            // Кнопка "Назад" в настройках - используем координаты canvas
+            if (canvasX >= 540 && canvasX <= 740 && canvasY >= 430 && canvasY <= 480) {
+                this.game.gameState = 'mainMenu';
+                return;
             }
 
             const slider = this.settingsElements.volumeSlider;
-            if (x >= slider.x && x <= slider.x + slider.width && y >= slider.y && y <= slider.y + slider.height) {
-                // Calculate the new volume as a ratio of the click position on the slider
-                let newVolume = (x - slider.x) / slider.width;
-                // Clamp the value between 0 and 1 to be safe
-                newVolume = Math.max(0, Math.min(1, newVolume));
-                this.game.audioManager.setVolume(newVolume);
-                return; // Exit
+            if (canvasX >= slider.x && canvasX <= slider.x + slider.width && canvasY >= slider.y && canvasY <= slider.y + slider.height) {
+                const newVolume = (canvasX - slider.x) / slider.width;
+                this.game.audioManager.setVolume(Math.max(0, Math.min(1, newVolume)));
+                return;
             }
+        }
+    }
+
+    async saveProgressAction() {
+        try {
+            this.showNotification('Сохранение...', 'info');
+            const success = await this.game.saveProgress();
+            
+            if (success) {
+                const saveLocation = this.game.saveManager ? 'в облако' : 'локально';
+                this.showNotification(`Прогресс сохранен ${saveLocation}!`, 'success');
+            } else {
+                this.showNotification('Ошибка сохранения!', 'error');
+            }
+        } catch (error) {
+            this.showNotification('Ошибка сохранения!', 'error');
         }
     }
 
@@ -133,14 +223,25 @@ export class UI {
             this.drawLeaderboard(context);
         }
 
+        // Отрисовка уведомлений поверх всего
+        this.drawNotification(context);
+
         context.restore();
     }
 
     drawHUD(context) {
+        // Фон для счета
+        context.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        context.fillRect(10, 5, 150, 30);
+        
+        // Счет - более крупный и заметный
         context.fillStyle = 'white';
-        context.font = `${this.fontSize}px ${this.fontFamily}`;
+        context.font = `${this.fontSize + 4}px ${this.fontFamily}`;
         context.textAlign = 'left';
         context.fillText(`Счет: ${this.game.score}`, 20, 30);
+        
+        // Рекорд
+        context.font = `${this.fontSize}px ${this.fontFamily}`;
         context.textAlign = 'right';
         context.fillText(`Рекорд: ${this.game.highScore}`, this.game.width - 20, 30);
 
@@ -154,14 +255,6 @@ export class UI {
             context.fillStyle = 'cyan';
             context.fillText('Slow Motion', this.game.width / 2, 60);
         }
-
-        // Отладочная информация о платформах
-        context.fillStyle = 'yellow';
-        context.font = `16px ${this.fontFamily}`;
-        context.textAlign = 'left';
-        context.fillText(`Платформ: ${this.game.platforms ? this.game.platforms.length : 0}`, 20, 80);
-        context.fillText(`Врагов: ${this.game.enemies ? this.game.enemies.length : 0}`, 20, 100);
-
         // Индикатор ключа
         if (this.game.player && this.game.player.hasKey) {
             context.fillStyle = 'gold';
@@ -171,6 +264,9 @@ export class UI {
     }
 
     drawMainMenu(context) {
+        // Обновляем координаты кнопок перед отрисовкой
+        this.updateMenuButtons();
+        
         context.fillStyle = 'rgba(0, 0, 0, 0.7)';
         context.fillRect(0, 0, this.game.width, this.game.height);
 
@@ -179,24 +275,17 @@ export class UI {
         context.textAlign = 'center';
         context.fillText('Хроно-Платформер', this.game.width / 2, this.game.height / 2 - 100);
 
-        // Отображение прогресса игрока
+        // Отображение прогресса игрока (сокращенно)
         if (this.game.playerProgress) {
-            context.fillStyle = 'rgba(255, 255, 255, 0.8)';
-            context.font = `16px ${this.fontFamily}`;
-            context.textAlign = 'left';
+            context.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            context.font = `14px ${this.fontFamily}`;
+            context.textAlign = 'right';
             
-            const progressX = 20;
-            const progressY = 50;
+            const progressX = this.game.width - 20;
+            const progressY = 30;
             
-            context.fillText(`Игрок: ${this.game.cloudSaveManager?.userId || 'Локальный'}`, progressX, progressY);
-            context.fillText(`Открыто уровней: ${this.game.playerProgress.unlockedLevels?.length || 0}`, progressX, progressY + 20);
-            context.fillText(`Пройдено уровней: ${this.game.playerProgress.completedLevels?.length || 0}`, progressX, progressY + 40);
-            context.fillText(`Лучший счет: ${this.game.playerProgress.totalScore || 0}`, progressX, progressY + 60);
-            
-            if (this.game.playerProgress.statistics) {
-                context.fillText(`Прыжков: ${this.game.playerProgress.statistics.totalJumps || 0}`, progressX, progressY + 80);
-                context.fillText(`Кристаллов: ${this.game.playerProgress.statistics.crystalsCollected || 0}`, progressX, progressY + 100);
-            }
+            context.fillText(`Уровней: ${this.game.playerProgress.unlockedLevels?.length || 0}/${this.game.levelsList?.length || 0}`, progressX, progressY);
+            context.fillText(`Счет: ${this.game.playerProgress.totalScore || 0}`, progressX, progressY + 20);
         }
 
         context.font = `20px ${this.fontFamily}`;
@@ -251,7 +340,6 @@ export class UI {
             context.font = `20px ${this.fontFamily}`;
             context.textAlign = 'center';
             context.fillText('Загрузка списка уровней...', this.game.width / 2, this.game.height / 2);
-            console.warn('⚠️ levelsList not loaded in drawLevelCards');
             return;
         }
 
@@ -376,6 +464,7 @@ export class UI {
                     // Показываем уведомление о заблокированном уровне
                     this.showNotification('Уровень заблокирован! Пройдите предыдущие уровни.', 'error');
                 }
+                return;
             }
         }
     }
@@ -438,21 +527,59 @@ export class UI {
     }
 
     drawButton(context, button) {
+        // Фон кнопки
         context.fillStyle = 'white';
         context.fillRect(button.x, button.y, button.width, button.height);
+        
+        // Тень кнопки для лучшего вида
+        context.fillStyle = 'rgba(0, 0, 0, 0.1)';
+        context.fillRect(button.x + 2, button.y + 2, button.width, button.height);
+        
+        // Фон кнопки поверх тени
+        context.fillStyle = 'white';
+        context.fillRect(button.x, button.y, button.width, button.height);
+        
+        // Границы кнопки
+        context.strokeStyle = '#ddd';
+        context.lineWidth = 1;
+        context.strokeRect(button.x, button.y, button.width, button.height);
+        
+        // Текст кнопки
         context.fillStyle = 'black';
         context.textAlign = 'center';
-        context.font = `20px ${this.fontFamily}`;
-        context.fillText(button.text, button.x + button.width / 2, button.y + button.height / 2 + 8);
+        context.font = `18px ${this.fontFamily}`;
+        context.fillText(button.text, button.x + button.width / 2, button.y + button.height / 2 + 6);
     }
 
     drawMobileControls(context) {
-        context.fillStyle = 'rgba(255, 255, 255, 0.3)';
         for (const buttonName in this.touchControls) {
             const btn = this.touchControls[buttonName];
+            
+            // Фон кнопки
+            context.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            context.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            context.lineWidth = 2;
+            
+            // Рисуем круглую кнопку
             context.beginPath();
-            context.arc(btn.x + btn.width / 2, btn.y + btn.height / 2, btn.width / 2, 0, Math.PI * 2);
+            context.arc(btn.x + btn.width / 2, btn.y + btn.height / 2, btn.width / 2 - 5, 0, Math.PI * 2);
             context.fill();
+            context.stroke();
+            
+            // Текст на кнопке
+            context.fillStyle = 'white';
+            context.textAlign = 'center';
+            context.font = '16px ' + this.fontFamily;
+            
+            let buttonText = '';
+            switch(buttonName) {
+                case 'left': buttonText = '←'; break;
+                case 'right': buttonText = '→'; break;
+                case 'jump': buttonText = '↑'; break;
+                case 'slow': buttonText = '⏱'; break;
+            }
+            
+            context.fillText(buttonText, btn.x + btn.width / 2, btn.y + btn.height / 2 + 5);
         }
     }
 
@@ -566,7 +693,6 @@ export class UI {
 
     async saveProgress() {
         try {
-            console.log('Manual save progress requested...');
             const success = await this.game.saveProgress();
             
             // Показываем уведомление пользователю
@@ -576,7 +702,6 @@ export class UI {
                 this.showNotification('Ошибка сохранения!', 'error');
             }
         } catch (error) {
-            console.error('Error in manual save:', error);
             this.showNotification('Ошибка сохранения!', 'error');
         }
     }

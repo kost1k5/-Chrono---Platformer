@@ -5,6 +5,9 @@ export class InputHandler {
         this.canvas = canvas;
         this.ui = ui;
 
+        // Предотвращение зума на мобильных устройствах
+        this.preventZoom();
+
         // --- Клавиатура ---
         window.addEventListener('keydown', (e) => {
             if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'Enter', 'ShiftLeft'].includes(e.code)) {
@@ -22,13 +25,12 @@ export class InputHandler {
             // Мышь используется только для UI в меню
             if (['mainMenu', 'settings', 'levelSelect'].includes(this.ui.game.gameState)) {
                 const rect = this.canvas.getBoundingClientRect();
-                const scaleX = this.canvas.width / rect.width;
-                const scaleY = this.canvas.height / rect.height;
-                // Используем offsetX/Y, которые уже дают координаты относительно элемента,
-                // и масштабируем их к внутреннему разрешению холста.
-                const x = e.offsetX * scaleX;
-                const y = e.offsetY * scaleY;
-                this.ui.handleMouseClick(x, y);
+                
+                // Просто используем offsetX/Y как экранные координаты
+                const screenX = e.offsetX;
+                const screenY = e.offsetY;
+                
+                this.ui.handleMouseClick(screenX, screenY);
             }
         });
 
@@ -51,16 +53,16 @@ export class InputHandler {
         if (this.ui.isTouchDevice) {
             this.canvas.addEventListener('touchstart', (e) => {
                 const rect = this.canvas.getBoundingClientRect();
-                const scaleX = this.canvas.width / rect.width;
-                const scaleY = this.canvas.height / rect.height;
 
                 // В меню, касания эмулируют клики по UI
                 if (['mainMenu', 'settings', 'levelSelect'].includes(this.ui.game.gameState)) {
                     e.preventDefault(); // Предотвращаем генерацию click, чтобы не было двойного срабатывания
                     for (const touch of e.changedTouches) {
-                        const x = (touch.clientX - rect.left) * scaleX;
-                        const y = (touch.clientY - rect.top) * scaleY;
-                        this.ui.handleMouseClick(x, y);
+                        // Передаём экранные координаты относительно canvas
+                        const screenX = touch.clientX - rect.left;
+                        const screenY = touch.clientY - rect.top;
+                        
+                        this.ui.handleMouseClick(screenX, screenY);
                     }
                     return; // Завершаем, так как в меню не нужны игровые контролы
                 }
@@ -69,14 +71,21 @@ export class InputHandler {
                 if (this.ui.game.gameState === 'playing') {
                     e.preventDefault();
                     for (const touch of e.changedTouches) {
-                        const x = (touch.clientX - rect.left) * scaleX;
-                        const y = (touch.clientY - rect.top) * scaleY;
+                        // Преобразуем экранные координаты в координаты canvas для игровых элементов
+                        const screenX = touch.clientX - rect.left;
+                        const screenY = touch.clientY - rect.top;
+                        const canvasCoords = this.ui.screenToCanvasCoords(screenX, screenY);
+                        const x = canvasCoords.x;
+                        const y = canvasCoords.y;
 
                         for (const buttonName in this.ui.touchControls) {
                             const btn = this.ui.touchControls[buttonName];
                             const dx = x - (btn.x + btn.width / 2);
                             const dy = y - (btn.y + btn.height / 2);
-                            if (dx * dx + dy * dy < (btn.width / 2) * (btn.width / 2)) {
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            const buttonRadius = btn.width / 2;
+                            
+                            if (distance < buttonRadius) {
                                 if (btn.key === 'Space') {
                                     if (this.ui.game.player) this.ui.game.player.jump();
                                 } else {
@@ -101,5 +110,29 @@ export class InputHandler {
                 }
             });
         }
+    }
+
+    preventZoom() {
+        // Предотвращение зума жестами
+        document.addEventListener('gesturestart', (e) => e.preventDefault());
+        document.addEventListener('gesturechange', (e) => e.preventDefault());
+        document.addEventListener('gestureend', (e) => e.preventDefault());
+
+        // Предотвращение зума двойным касанием
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', (event) => {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+
+        // Предотвращение зума пинчем
+        document.addEventListener('touchmove', (event) => {
+            if (event.scale !== 1) {
+                event.preventDefault();
+            }
+        }, { passive: false });
     }
 }
