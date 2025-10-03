@@ -1,34 +1,38 @@
+/* Предотвращаем проблемы с viewport на мобильных */
+html {
+    height: 100%;
+    overflow: hidden;
+}
+
 body {
     margin: 0;
     padding: 0;
     overflow: hidden;
     background-color: #1a1a1a;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    width: 100vw;
-    touch-action: none; /* Предотвращает нежелательные жесты браузера */
-    user-select: none; /* Предотвращает выделение текста на мобильных */
+    height: 100%;
+    width: 100%;
+    touch-action: none;
+    user-select: none;
+    
+    /* Дополнительные свойства для мобильных Safari */
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -webkit-text-size-adjust: none;
+    
+    /* Скрываем адресную строку на мобильных */
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
 }
 
 canvas {
     background-color: #000;
-    display: block; /* По умолчанию показываем canvas */
-    position: relative;
+    display: block;
     z-index: 1000;
-    touch-action: none; /* Отключаем встроенные жесты браузера */
-
-    /* Адаптивные размеры для мобильных устройств */
-    width: 100vw;
-    height: 100vh;
-    
-    /* Сохранить пропорции при масштабировании */
-    object-fit: contain;
-    
-    /* Для десктопа ограничиваем максимальные размеры */
-    max-width: 1280px;
-    max-height: 720px;
+    touch-action: none;
+    /* Размеры будут установлены через JavaScript */
 }
 
 #rotate-device-message {

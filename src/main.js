@@ -24,6 +24,73 @@ import { ObjectiveSystem, SecretArea } from './game/GameObjectives.js';
  * Точка входа в игру - инициализируется после загрузки DOM
  */
 window.addEventListener('load', function() {
+    // Функция для скрытия адресной строки на мобильных
+    function hideAddressBar() {
+        if (window.orientation !== undefined) {
+            // Это мобильное устройство
+            setTimeout(() => {
+                window.scrollTo(0, 1);
+                window.scrollTo(0, 0);
+            }, 100);
+        }
+    }
+
+    // Функция для правильного масштабирования canvas
+    function resizeCanvas() {
+        const canvas = document.getElementById('gameCanvas');
+        
+        // Получаем реальные размеры экрана с учетом UI браузера
+        let windowWidth, windowHeight;
+        
+        // Используем visualViewport API если доступен (для мобильных)
+        if (window.visualViewport) {
+            windowWidth = window.visualViewport.width;
+            windowHeight = window.visualViewport.height;
+        } else {
+            // Fallback для старых браузеров
+            windowWidth = window.innerWidth;
+            windowHeight = window.innerHeight;
+        }
+        
+        // Дополнительная проверка для мобильных устройств
+        // Используем documentElement для более точных размеров
+        const docWidth = document.documentElement.clientWidth;
+        const docHeight = document.documentElement.clientHeight;
+        
+        if (docWidth > 0 && docHeight > 0) {
+            windowWidth = Math.min(windowWidth, docWidth);
+            windowHeight = Math.min(windowHeight, docHeight);
+        }
+        
+        // Целевое соотношение сторон игры (1280:720 = 16:9)
+        const targetAspectRatio = 1280 / 720;
+        const windowAspectRatio = windowWidth / windowHeight;
+        
+        let canvasWidth, canvasHeight;
+        
+        if (windowAspectRatio > targetAspectRatio) {
+            // Окно шире, чем нужно - ограничиваем по высоте
+            canvasHeight = windowHeight;
+            canvasWidth = canvasHeight * targetAspectRatio;
+        } else {
+            // Окно уже, чем нужно - ограничиваем по ширине
+            canvasWidth = windowWidth;
+            canvasHeight = canvasWidth / targetAspectRatio;
+        }
+        
+        // Применяем размеры к canvas через CSS
+        canvas.style.width = canvasWidth + 'px';
+        canvas.style.height = canvasHeight + 'px';
+        
+        // Центрируем canvas
+        const marginLeft = (windowWidth - canvasWidth) / 2;
+        const marginTop = (windowHeight - canvasHeight) / 2;
+        
+        canvas.style.position = 'absolute';
+        canvas.style.left = marginLeft + 'px';
+        canvas.style.top = marginTop + 'px';
+    }
+
     // Функция проверки ориентации устройства
     function checkOrientation() {
         const canvas = document.getElementById('gameCanvas');
@@ -33,28 +100,34 @@ window.addEventListener('load', function() {
         const isPortrait = window.matchMedia("(orientation: portrait)").matches;
         const isLandscape = window.matchMedia("(orientation: landscape)").matches;
         
-        // Отладочная информация
-        console.log(`Размеры: ${window.innerWidth}x${window.innerHeight}`);
-        console.log(`CSS Portrait: ${isPortrait}, CSS Landscape: ${isLandscape}`);
-        console.log(`Размерная ориентация: ${window.innerHeight > window.innerWidth ? 'Portrait' : 'Landscape'}`);
-        
         if (isPortrait) {
             canvas.style.display = 'none';
             rotateMessage.style.display = 'flex';
-            console.log('Показываем сообщение о повороте');
-        } else if (isLandscape) {
+        } else {
             canvas.style.display = 'block';
             rotateMessage.style.display = 'none';
-            console.log('Показываем игру');
+            hideAddressBar(); // Скрываем адресную строку
+            resizeCanvas(); // Пересчитываем размеры canvas для любой ориентации
         }
     }
 
     // Проверяем ориентацию при загрузке и изменении размера окна
+    hideAddressBar(); // Сразу пытаемся скрыть адресную строку
     checkOrientation();
     window.addEventListener('resize', checkOrientation);
     window.addEventListener('orientationchange', () => {
-        setTimeout(checkOrientation, 100); // Небольшая задержка для обновления размеров
+        setTimeout(() => {
+            hideAddressBar();
+            checkOrientation();
+        }, 100); // Небольшая задержка для обновления размеров
     });
+    
+    // Дополнительный обработчик для visualViewport (мобильные браузеры)
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', () => {
+            setTimeout(checkOrientation, 50);
+        });
+    }
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
